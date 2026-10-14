@@ -6,8 +6,11 @@
   const reloadMs = Math.max(60, Math.min(Number(config.reloadSeconds) || 180, 3600)) * 1000;
   const STORE_FAV = 'salehunter-v3-favs';
   const STORE_THEME = 'salehunter-v3-theme';
+  const STORE_BAD = 'salehunter-v3-reported-codes';
   const state = {feed: {items:[],sources:[],last_updated:null,stats:{}},platform:'all',mode:'codes',query:'',sort:'featured',visible:24,loading:false,hasLoaded:false,bundledFallback:false};
   const favorites = new Set(safeRead(STORE_FAV, []));
+  const reportedCodes = new Set(safeRead(STORE_BAD, []).map(s => String(s).toUpperCase()));
+  const excludedCodes = new Set(['SVIPDDVKH0110MOC200A']); // Reported in the uploaded Shopee screenshot.
   let toastTimer;
   let refreshTimer;
   let searchTimer;
@@ -20,7 +23,26 @@
   function expiration(raw){const time=dateValue(raw);if(time===null)return 'Chưa công bố';return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(time));}
   function validLink(raw){try{const url=new URL(String(raw||''));return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
   function hasCode(item){return typeof item.code==='string' && /^[A-Z0-9][A-Z0-9_-]{4,27}$/i.test(item.code)}
-  function activeItems(){return (state.feed.items||[]).filter(item=>item&&typeof item==='object'&&(item.platform==='Shopee'||item.platform==='TikTok Shop')&&(!dateValue(item.expires_at)||dateValue(item.expires_at)>Date.now()));}
+  function codeKey(item){return String(item.code||'').trim().toUpperCase()}
+  function hiddenBadCode(item){return hasCode(item) && (reportedCodes.has(codeKey(item)) || excludedCodes.has(codeKey(item)))}
+  async function loadExclusions(){
+    try {const url=new URL(config.excludedCodesUrl||'./data/excluded_codes.json',document.baseURI);
+      if(!['http:','https:'].includes(url.protocol))return;
+      const res=await fetch(url.href,{cache:'no-cache'});if(!res.ok)return;
+      const payload=await res.json(); if(!Array.isArray(payload.codes))return;
+      for(const value of payload.codes){if(typeof value==='string'&&/^[A-Z0-9][A-Z0-9_-]{4,27}$/i.test(value))excludedCodes.add(value.toUpperCase())}
+    }catch{
+      // Keep the explicitly reported code and the packaged fallback denylist.
+    }
+  }
+  function reportCode(item){
+    if(!hasCode(item))return;
+    reportedCodes.add(codeKey(item));
+    try{localStorage.setItem(STORE_BAD,JSON.stringify([...reportedCodes].slice(-500)))}catch{}
+    render();
+    showToast('Đã ẩn mã trên thiết bị này. Chưa gửi báo cáo về máy chủ.');
+  }
+  function activeItems(){return (state.feed.items||[]).filter(item=>item&&typeof item==='object'&&(item.platform==='Shopee'||item.platform==='TikTok Shop')&&(!dateValue(item.expires_at)||dateValue(item.expires_at)>Date.now())&&!hiddenBadCode(item));}
   function showToast(msg){const node=$('toast');node.textContent=msg;node.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('show'),3500)}
   async function copyText(value){
     try{
@@ -60,7 +82,8 @@
     const coupon=el('div','coupon-box'+(hasCode(item)?'':' no-code')),content=el('div');content.append(el('span','code-label',hasCode(item)?'MÃ ĐƯỢC CÔNG BỐ':'KHÔNG CÓ CHUỖI MÃ NHẬP TAY'),el('strong','code-value',hasCode(item)?item.code:'Nhận ưu đãi trên trang nguồn'));coupon.append(content);
     if(hasCode(item)){const b=el('button','copy-btn');b.type='button';b.append(icon('copy'),document.createTextNode('Copy mã'));b.setAttribute('aria-label','Sao chép mã '+item.code);b.addEventListener('click',()=>copyText(item.code));coupon.append(b);}
     else coupon.append(icon('external'));
-    body.append(coupon,el('div','card-disclaimer','Nguồn công khai · Chưa xác minh mã còn lượt khi thanh toán'));
+    body.append(coupon,el('div','card-disclaimer','⚠ CHƯA XÁC MINH tại thanh toán. Mã có thể hết lượt, giới hạn tài khoản hoặc không áp dụng cho đơn hàng.'));
+    if(hasCode(item)){const report=el('button','report-code-btn','⚑ Báo mã không dùng được · Ẩn trên thiết bị');report.type='button';report.addEventListener('click',()=>reportCode(item));body.append(report);}
     const footer=el('div','card-footer');const source=el('span','card-source');source.append(document.createTextNode('Nguồn: '),el('strong',null,item.source||'Công khai'));source.title=item.source||'';footer.append(source);
     const actions=el('div','card-actions');const href=validLink(item.url);const out=el('a','open-source');out.append(document.createTextNode('Xem nguồn'),icon('external'));
     if(href){out.href=href;out.target='_blank';out.rel='noopener noreferrer';}else {out.removeAttribute('href');out.setAttribute('aria-disabled','true');}
@@ -89,27 +112,41 @@
   function renderAlerts(){const area=$('alerts');area.replaceChildren();const feed=state.feed;const items=activeItems();if(feed.has_source_errors)area.append(notice('Một hoặc nhiều nguồn đang lỗi. Danh sách có thể chứa dữ liệu lưu từ lần quét thành công trước đó; hãy xác minh tại nguồn.',true));
     const age=dateValue(feed.last_attempt);if(age&&Date.now()-age>1000*60*100)area.append(notice('Dữ liệu đã lâu chưa được quét. Hãy kiểm tra GitHub Actions nếu cần thông tin mới nhất.',true));
     if(state.hasLoaded&&!items.length)area.append(notice('Hiện chưa có ưu đãi phù hợp được công bố từ các nguồn đã cấu hình. Không có mã giả được thêm vào.'));
-    if(state.bundledFallback)area.append(notice('Đang xem mã khởi tạo được nguồn công khai niêm yết ngày 14/10/2026. GitHub chưa chạy lần quét đầu; mã chưa được xác minh khi thanh toán.',true));
+    if(reportedCodes.size)area.append(notice('Bạn đã ẩn '+reportedCodes.size+' mã lỗi trên thiết bị này. Báo cáo chưa được gửi tới quản trị viên.'));
+    area.append(notice('Lưu ý: Mã công bố trên website thứ ba KHÔNG đồng nghĩa Shopee/TikTok Shop chấp nhận mã. Chỉ sàn mới xác nhận khi áp dụng đơn hàng.'));
     if(!config.dataUrl)area.append(notice('Chưa kết nối URL JSON bên ngoài. Hiện chỉ hiển thị dữ liệu đi kèm trong Space.'));
   }
   function render(){renderMetrics();renderAlerts();renderCards();renderSources()}
   function setMode(mode){if(!['codes','all','claim','saved'].includes(mode))return;state.mode=mode;state.visible=24;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode===mode);b.setAttribute('aria-pressed',String(b.dataset.mode===mode))});document.querySelectorAll('[data-side]').forEach(b=>b.classList.toggle('active',b.dataset.side===mode));renderCards()}
   function setPlatform(name){state.platform=name;state.visible=24;document.querySelectorAll('[data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===name);b.setAttribute('aria-pressed',String(b.dataset.platform===name))});document.querySelectorAll('[data-merchant]').forEach(b=>b.classList.toggle('active',b.dataset.merchant===name));renderCards()}
   async function load(force=false){if(state.loading)return;state.loading=true;$('refreshBtn').disabled=true;
-    try {const address=new URL(feedUrl,location.href);if(!['http:','https:'].includes(address.protocol))throw Error('URL không hợp lệ');if(force)address.searchParams.set('_v',Date.now());
+    try {const address=new URL(feedUrl,document.baseURI);if(!['http:','https:'].includes(address.protocol))throw Error('URL không hợp lệ');if(force)address.searchParams.set('_v',Date.now());
       const res=await fetch(address.href,{mode:'cors',cache:force?'no-store':'no-cache'});if(!res.ok)throw Error('HTTP '+res.status);let data=await res.json();if(!data||!Array.isArray(data.items)||!Array.isArray(data.sources))throw Error('Dữ liệu JSON sai cấu trúc');
       state.bundledFallback=false;
-      // When the GitHub repo has NOT EVER been scanned, show attributed, dated initial data.
-      // Never override a genuine empty result from a completed scan.
-      if(!data.items.length && !data.last_attempt && !data.last_updated && !feedUrl.startsWith('./')) {
-        try {const fallback=await fetch('./data/offers.json',{cache:'no-cache'});
-          if(fallback.ok){const local=await fallback.json();if(Array.isArray(local.items)&&local.items.length){data=local;state.bundledFallback=true;}}
-        }catch{}
-      }
+      // Never inject hardcoded codes when GitHub has an empty successful result.
       const sign=JSON.stringify([data.last_attempt,data.items,data.sources,state.bundledFallback]);state.hasLoaded=true;
       if(sign!==lastSignature||force){lastSignature=sign;state.feed=data;render()}
-      if(force)showToast('Đã tải phiên bản dữ liệu mới nhất trên GitHub');
-    }catch(err){state.hasLoaded=true;$('alerts').replaceChildren(notice('Không lấy được dữ liệu từ GitHub: '+err.message+'. Kiểm tra repository public, cấu hình config.js và GitHub Actions.',true));$('emptyTitle').textContent='Không thể kết nối nguồn dữ liệu';$('emptyDesc').textContent='Vui lòng kiểm tra link dữ liệu hoặc GitHub Actions.';if(!state.feed.items.length){$('cards').replaceChildren();$('empty').hidden=false}if(force)showToast('Không thể tải dữ liệu. Kiểm tra JSON công khai.');}
+      if(force)showToast('Đã tải dữ liệu nguồn. Mã chưa được xác minh tại thanh toán.');
+    }catch(err){
+      state.hasLoaded=true;
+      let recovered=false;
+      if(!state.feed.items.length){
+        try{
+          const address= new URL(config.fallbackDataUrl||'./data/offers.json',document.baseURI);
+          const fallback=await fetch(address.href,{cache:'no-cache'});
+          if(fallback.ok){
+            const local=await fallback.json();
+            if(Array.isArray(local.items) && Array.isArray(local.sources)){
+              state.feed=local;state.bundledFallback=false;recovered=true;
+            }
+          }
+        }catch{}
+      }
+      render();
+      $('alerts').prepend(notice('Không tải được dữ liệu GitHub ('+err.message+'). '+
+        (recovered?'Đang hiển thị danh sách cục bộ (không có mã cũ được thêm vào).':'Kiểm tra GitHub Actions hoặc đường dẫn data/offers.json.'),true));
+      if(force)showToast(recovered?'Chưa có dữ liệu mới; không thêm mã cũ':'Không thể tải dữ liệu; kiểm tra tệp nguồn.');
+    }
     finally{state.loading=false;$('refreshBtn').disabled=false;}
   }
   function setupTheme(){let theme;try{theme=localStorage.getItem(STORE_THEME)}catch{}if(theme==='dark')document.body.classList.add('dark');$('themeToggle').addEventListener('click',()=>{const yes=document.body.classList.toggle('dark');try{localStorage.setItem(STORE_THEME,yes?'dark':'light')}catch{}showToast(yes?'Đã bật giao diện tối':'Đã bật giao diện sáng')})}
@@ -126,7 +163,7 @@
     document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('search').focus()}});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false)});
     refreshTimer=setInterval(()=>{if(!document.hidden)load(false)},reloadMs);
-    setPlatform('all');setMode('codes');load();
+    setPlatform('all');setMode('codes');loadExclusions().then(()=>{render();load()});
   }
   setup();
 })();

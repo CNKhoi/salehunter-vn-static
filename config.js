@@ -1,6 +1,6 @@
-// Repository công khai của bạn. Trên HF Static giao diện sẽ đọc JSON từ GitHub.
-// Khi chưa cấu hình GitHub, có thể đổi dataUrl thành './data/offers.json'.
+// Static Space đọc dữ liệu do GitHub Actions thu thập và danh sách loại trừ do quản trị viên quản lý.
 window.SALEHUNTER_CONFIG = Object.freeze({
   dataUrl: 'https://raw.githubusercontent.com/CNKhoi/salehunter-vn-static/main/data/offers.json',
+  excludedCodesUrl: 'https://raw.githubusercontent.com/CNKhoi/salehunter-vn-static/main/data/excluded_codes.json',
   reloadSeconds: 180
 });

@@ -44,6 +44,18 @@ def parse_iso(value: str | None):
     return parse_date(value) if value else None
 
 
+def read_excluded_codes(path: Path) -> set[str]:
+    """Operator-maintained denylist: user reports are NOT marketplace-wide verification."""
+    payload = read_json(path, {'codes': []})
+    codes = payload.get('codes', [])
+    if not isinstance(codes, list):
+        raise ValueError('excluded_codes.json: codes phải là mảng')
+    import re
+    valid = re.compile(r'^[A-Z0-9][A-Z0-9_-]{4,27}$')
+    return {v.strip().upper() for value in codes if isinstance(value, str)
+            if (v := value.strip().upper()) and valid.fullmatch(v)}
+
+
 def refresh_sources(cache: dict, sources: list, now: datetime, max_workers: int = 4):
     cache.setdefault('sources', {})
     cache.setdefault('totals', {'scans': 0, 'failed_scans': 0})
@@ -85,8 +97,9 @@ def refresh_sources(cache: dict, sources: list, now: datetime, max_workers: int 
     return attempts
 
 
-def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200) -> dict:
+def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, excluded_codes: set[str] | None = None) -> dict:
     known = cache.get('sources', {})
+    excluded_codes = excluded_codes or set()
     candidates = []
     statuses = []
     for source in sources:
@@ -99,6 +112,8 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200) -> dic
         })
         for item in st.get('items', []):
             if not isinstance(item, dict) or not item.get('id'):
+                continue
+            if str(item.get('code') or '').strip().upper() in excluded_codes:
                 continue
             expires = parse_iso(item.get('expires_at'))
             if expires and expires <= now:
@@ -174,7 +189,7 @@ def main():
     )
     cache = read_json(CACHE_PATH, {'schema_version': 1, 'sources': {}, 'totals': {}})
     attempts = refresh_sources(cache, sources, now)
-    result = snapshot(cache, sources, now)
+    result = snapshot(cache, sources, now, excluded_codes=read_excluded_codes(ROOT / 'data' / 'excluded_codes.json'))
     write_json(CACHE_PATH, cache)
     write_json(FEED_PATH, result)
     print('Nguồn:', len(sources), '| Kết quả:', [(k, ok, n) for k, ok, n in sorted(attempts)])

@@ -1,21 +1,13 @@
----
-title: SaleHunter VN V3
-emoji: 🎟️
-colorFrom: indigo
-colorTo: pink
-sdk: static
-app_file: index.html
-fullWidth: true
-short_description: Ma giam gia Shopee va TikTok Shop tu nguon cong khai
----
+# SaleHunter VN V3.1 — GitHub AutoScan
 
-# SaleHunter VN V3
+Bộ thu thập công khai cho giao diện Hugging Face **Static**. Python chạy bằng GitHub Actions, không dùng Docker.
 
-Giao diện Static cho Hugging Face Spaces. Bộ quét Python chạy riêng qua GitHub Actions.
+## Cài đặt
+1. Upload toàn bộ nội dung ZIP lên repository `CNKhoi/salehunter-vn-static` (nhánh `main`).
+2. Kiểm tra `.github/workflows/update.yml`, `requirements.txt`, `collectors.py`, `scripts/update_feed.py` nằm đúng vị trí.
+3. Vào Settings → Actions → General, cấp `Read and write permissions` nếu cần; chạy workflow **Cap nhat voucher cong khai**.
+4. Kiểm tra `data/offers.json` được cập nhật, xem trạng thái mỗi nguồn ở `sources`.
 
-- Không cần Docker.
-- `config.js` đã được cấu hình để đọc dữ liệu từ repo công khai `CNKhoi/salehunter-vn-static`.
-- Mã nhập tay được đọc từ **chuỗi mã thật sự công bố** trên nguồn công khai; không tự sinh mã.
-- “Mã có thể sao chép” **không đồng nghĩa** mã còn lượt hoặc áp dụng thành công tại thanh toán.
+Mã được phát hiện từ trang công khai chưa được Shopee/TikTok Shop xác minh khi thanh toán; một mã có thể không áp dụng cho một tài khoản hoặc đơn hàng. Không tự suy ra mã còn dùng chỉ từ hạn công bố.
 
-Xem `HUONG_DAN.md` để triển khai.
+Quản trị viên có thể dùng `data/excluded_codes.json` để tạm loại mã bị phản ánh. Thư mục `data/manual_offers.json` được để rỗng để tránh hiển thị mã seed chưa được xác minh.
