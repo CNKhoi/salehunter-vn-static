@@ -1,12 +1,100 @@
 {
-  "schema_version": 1,
-  "items": [],
-  "sources": [],
-  "stats": {"all": 0, "shopee": 0, "tiktok": 0, "codes": 0, "stale": 0, "scans": 0, "failed_scans": 0},
-  "is_scanning": false,
-  "last_updated": null,
-  "last_attempt": null,
   "has_source_errors": false,
+  "is_scanning": false,
+  "items": [
+    {
+      "code": null,
+      "description": "Thông tin từ trang tổng hợp; kiểm tra tại nguồn.",
+      "direct_link": false,
+      "discount": "",
+      "expires_at": null,
+      "first_seen": "2026-10-14T15:57:19.730244+07:00",
+      "id": "ac3e27be0ae890adc55c4c08",
+      "kind": "Flash sale",
+      "last_seen": "2026-10-14T15:57:19.730244+07:00",
+      "min_spend": "",
+      "platform": "Shopee",
+      "published_at": "2026-10-14T15:57:19.732036+07:00",
+      "source": "Bloggiamgia.vn",
+      "source_key": "blog",
+      "source_unavailable": false,
+      "stale": false,
+      "title": "Deal flash sale 1K, 9K, 29K Chỉ trong app Nô Tì Mở app",
+      "url": "https://noti.sale/shopee-flashsale-1k?utm_source=bgg",
+      "verification": "Chưa xác minh tại thanh toán"
+    },
+    {
+      "code": null,
+      "description": "Thông tin từ trang tổng hợp; kiểm tra tại nguồn.",
+      "direct_link": false,
+      "discount": "",
+      "expires_at": null,
+      "first_seen": "2026-10-14T15:57:19.730244+07:00",
+      "id": "d515054cad738508506933ee",
+      "kind": "Flash sale",
+      "last_seen": "2026-10-14T15:57:19.730244+07:00",
+      "min_spend": "",
+      "platform": "Shopee",
+      "published_at": "2026-10-14T15:57:19.732036+07:00",
+      "source": "Bloggiamgia.vn",
+      "source_key": "blog",
+      "source_unavailable": false,
+      "stale": false,
+      "title": "Deal Flash Sale 9K, 29K, 99K Chỉ trong app Nô Tì Mở app",
+      "url": "https://noti.sale/shopee-flashsale-1k?utm_source=bgg",
+      "verification": "Chưa xác minh tại thanh toán"
+    }
+  ],
+  "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+  "last_updated": "2026-10-14T15:57:19.730244+07:00",
+  "notice": "Dữ liệu từ nguồn công khai; chưa xác minh tại thanh toán. GitHub Actions có thể chạy trễ lịch.",
   "refresh_minutes": 30,
-  "notice": "Chưa có dữ liệu công khai được thu thập. Chưa xác minh voucher khi thanh toán."
+  "schema_version": 1,
+  "sources": [
+    {
+      "count": 0,
+      "error": null,
+      "key": "manual",
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Nguồn JSON quản trị",
+      "ok": true
+    },
+    {
+      "count": 0,
+      "error": null,
+      "key": "news_shopee",
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Google News · Shopee",
+      "ok": true
+    },
+    {
+      "count": 0,
+      "error": null,
+      "key": "news_tiktok",
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Google News · TikTok Shop",
+      "ok": true
+    },
+    {
+      "count": 2,
+      "error": null,
+      "key": "blog",
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Bloggiamgia · Ưu đãi hôm nay",
+      "ok": true
+    }
+  ],
+  "stats": {
+    "all": 2,
+    "codes": 0,
+    "failed_scans": 0,
+    "scans": 4,
+    "shopee": 2,
+    "stale": 0,
+    "tiktok": 0
+  }
 }

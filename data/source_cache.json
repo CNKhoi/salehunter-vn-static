@@ -1,1 +1,84 @@
-{"schema_version": 1, "sources": {}, "totals": {"scans": 0, "failed_scans": 0}}
+{
+  "schema_version": 1,
+  "sources": {
+    "blog": {
+      "count": 2,
+      "error": null,
+      "items": [
+        {
+          "code": null,
+          "description": "Thông tin từ trang tổng hợp; kiểm tra tại nguồn.",
+          "direct_link": false,
+          "discount": "",
+          "expires_at": null,
+          "first_seen": "2026-10-14T15:57:19.730244+07:00",
+          "id": "ac3e27be0ae890adc55c4c08",
+          "kind": "Flash sale",
+          "last_seen": "2026-10-14T15:57:19.730244+07:00",
+          "min_spend": "",
+          "platform": "Shopee",
+          "published_at": "2026-10-14T15:57:19.732036+07:00",
+          "source": "Bloggiamgia.vn",
+          "source_key": "blog",
+          "title": "Deal flash sale 1K, 9K, 29K Chỉ trong app Nô Tì Mở app",
+          "url": "https://noti.sale/shopee-flashsale-1k?utm_source=bgg",
+          "verification": "Chưa xác minh tại thanh toán"
+        },
+        {
+          "code": null,
+          "description": "Thông tin từ trang tổng hợp; kiểm tra tại nguồn.",
+          "direct_link": false,
+          "discount": "",
+          "expires_at": null,
+          "first_seen": "2026-10-14T15:57:19.730244+07:00",
+          "id": "d515054cad738508506933ee",
+          "kind": "Flash sale",
+          "last_seen": "2026-10-14T15:57:19.730244+07:00",
+          "min_spend": "",
+          "platform": "Shopee",
+          "published_at": "2026-10-14T15:57:19.732036+07:00",
+          "source": "Bloggiamgia.vn",
+          "source_key": "blog",
+          "title": "Deal Flash Sale 9K, 29K, 99K Chỉ trong app Nô Tì Mở app",
+          "url": "https://noti.sale/shopee-flashsale-1k?utm_source=bgg",
+          "verification": "Chưa xác minh tại thanh toán"
+        }
+      ],
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Bloggiamgia · Ưu đãi hôm nay",
+      "ok": true
+    },
+    "manual": {
+      "count": 0,
+      "error": null,
+      "items": [],
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Nguồn JSON quản trị",
+      "ok": true
+    },
+    "news_shopee": {
+      "count": 0,
+      "error": null,
+      "items": [],
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Google News · Shopee",
+      "ok": true
+    },
+    "news_tiktok": {
+      "count": 0,
+      "error": null,
+      "items": [],
+      "last_attempt": "2026-10-14T15:57:19.730244+07:00",
+      "last_success": "2026-10-14T15:57:19.730244+07:00",
+      "name": "Google News · TikTok Shop",
+      "ok": true
+    }
+  },
+  "totals": {
+    "failed_scans": 0,
+    "scans": 4
+  }
+}
