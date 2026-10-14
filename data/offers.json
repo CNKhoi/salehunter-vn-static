@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "items": [],
+  "sources": [],
+  "stats": {"all": 0, "shopee": 0, "tiktok": 0, "codes": 0, "stale": 0, "scans": 0, "failed_scans": 0},
+  "is_scanning": false,
+  "last_updated": null,
+  "last_attempt": null,
+  "has_source_errors": false,
+  "refresh_minutes": 30,
+  "notice": "Chưa có dữ liệu công khai được thu thập. Chưa xác minh voucher khi thanh toán."
+}
