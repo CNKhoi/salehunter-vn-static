@@ -1,12 +1,12 @@
 ---
-title: SaleHunter VN V2
+title: SaleHunter VN V2 - Free Static
 emoji: 🎟️
-colorFrom: indigo
+colorFrom: orange
 colorTo: pink
 sdk: static
 app_file: index.html
 fullWidth: true
-short_description: San sale va voucher Shopee, TikTok Shop
+short_description: Theo dõi voucher công khai Shopee/TikTok Shop từ JSON do GitHub Actions cập nhật.
 ---
 
 # SaleHunter VN V2 · Hugging Face Static (không cần Docker)
