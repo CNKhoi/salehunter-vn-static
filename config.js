@@ -1,9 +1,6 @@
-// BƯỚC QUAN TRỌNG: Sau khi tạo GitHub repo công khai và chạy Actions,
-// điền link RAW của data/offers.json vào trường dataUrl.
-// Ví dụ: https://raw.githubusercontent.com/TEN_GITHUB/salehunter-vn-static/main/data/offers.json
-// Nếu để trống, web sẽ đọc file dữ liệu đi kèm ở Hugging Face
-// và KHÔNG tự nhận dữ liệu mới từ GitHub.
+// Repository công khai của bạn. Trên HF Static giao diện sẽ đọc JSON từ GitHub.
+// Khi chưa cấu hình GitHub, có thể đổi dataUrl thành './data/offers.json'.
 window.SALEHUNTER_CONFIG = Object.freeze({
-  dataUrl: '',
+  dataUrl: 'https://raw.githubusercontent.com/CNKhoi/salehunter-vn-static/main/data/offers.json',
   reloadSeconds: 180
 });

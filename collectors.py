@@ -91,10 +91,10 @@ def kind_of(value: str) -> str:
 
 
 def discount_of(value: str) -> str:
-    percent = re.search(r'(?:giảm|tới|đến|ưu đãi)\s*(\d{1,2}\s*%)', value, re.I)
+    percent = re.search(r'(?:giảm|tới|đến|ưu đãi)\s*(\d{1,3}\s*%)', value, re.I)
     if percent:
         return percent.group(1).replace(' ', '')
-    amount = re.search(r'(?:giảm|tới|đến|tối đa)\s*(\d+(?:[.,]\d+)?\s*(?:triệu|tr|k|đ|vnd))\b', value, re.I)
+    amount = re.search(r'(?:giảm|tới|đến|tối đa)\s*(\d+(?:[.,]\d+)?\s*(?:triệu|trđ|tr|kđ|k|đ|vnd))\b', value, re.I)
     return clean_text(amount.group(1), 22) if amount else ''
 
 
@@ -160,7 +160,7 @@ def offers_from_payload(data: object, key: str, name: str) -> list[dict]:
         if not isinstance(obj, dict):
             continue
         result = make_offer(platform=str(obj.get('platform', '')), title=str(obj.get('title', '')),
-                            url=str(obj.get('url', '')), source_key=key, source_name=name,
+                            url=str(obj.get('url', '')), source_key=key, source_name=clean_text(obj.get('source') or name, 80),
                             description=str(obj.get('description') or ''), code=obj.get('code'),
                             published_at=obj.get('published_at'), expires_at=obj.get('expires_at'),
                             min_spend=str(obj.get('min_spend') or ''), discount=str(obj.get('discount') or ''))
@@ -253,6 +253,103 @@ def blog_offers(reference: datetime | None = None) -> list[dict]:
     return offers
 
 
+def mekoupon_expiry(value: str, reference: datetime) -> str | None:
+    """Convert a published DD-MM expiry to end-of-day Vietnam time; no guessed future year."""
+    match = re.search(r'(\d{1,2})\s*[-/]\s*(\d{1,2})(?:\s*[-/]\s*(\d{4}))?', value)
+    if not match:
+        return None
+    day, month = int(match.group(1)), int(match.group(2))
+    year = int(match.group(3)) if match.group(3) else reference.year
+    # Only a genuine year-boundary campaign may refer to January/February next year.
+    if not match.group(3) and reference.month >= 11 and month <= 2:
+        year += 1
+    try:
+        return datetime(year, month, day, 23, 59, 59, tzinfo=VN).isoformat()
+    except ValueError:
+        return None
+
+
+def parse_mekoupon_cards(html: str, platform: str, reference: datetime, source_url: str) -> list[dict]:
+    """Extract only *literal* promo tokens beside HSD/discount/minimum spend.
+
+    No token guessing from headings, URLs, scripts or article boilerplate.
+    Web layouts can change; an unrecognized layout returns [] rather than fake data.
+    """
+    soup = BeautifulSoup(html, 'html.parser')
+    for el in soup(['script', 'style', 'noscript', 'footer', 'nav', 'header']):
+        el.decompose()
+    results = []
+    seen = set()
+
+    def accept(lines: list[str], anchor: str = ''):
+        raw = ' '.join(lines)
+        hsd = re.search(r'\bHSD\s*:\s*(\d{1,2}\s*[-/]\s*\d{1,2}(?:\s*[-/]\s*\d{4})?)', raw, re.I)
+        expiry = mekoupon_expiry(hsd.group(1), reference) if hsd else None
+        if not expiry or parse_date(expiry) <= reference:
+            return
+        title = next((x for x in lines if re.match(r'^(?:Giảm|Freeship|Miễn phí|Hoàn)\b', x, re.I)), None)
+        min_spend = next((x for x in lines if 'đơn tối thiểu' in x.casefold()), '')
+        if not title or not min_spend:
+            return
+        # Require coupon token following the minimum-spend label and preceding action text.
+        indexes = [i for i, val in enumerate(lines) if 'đơn tối thiểu' in val.casefold()]
+        code = None
+        if indexes:
+            for candidate in lines[indexes[0] + 1:indexes[0] + 5]:
+                candidate = candidate.strip().upper()
+                if re.fullmatch(r'[A-Z0-9][A-Z0-9_-]{4,27}', candidate) and candidate not in BAD_CODES:
+                    code = candidate
+                    break
+                if 'lưu mã' in candidate.casefold() or 'dùng ngay' in candidate.casefold():
+                    break
+        if not code or code in seen:
+            return
+        seen.add(code)
+        result = make_offer(platform=platform, title=title, url=anchor or source_url,
+                            source_key='mekoupon_shopee' if platform == 'Shopee' else 'mekoupon_tiktok',
+                            source_name='Mekoupon · Mã công khai',
+                            description='Mã được niêm yết công khai; điều kiện và lượt sử dụng cần kiểm tra tại thanh toán.',
+                            code=code, expires_at=expiry, min_spend=min_spend,
+                            discount=discount_of(title))
+        if result:
+            results.append(result)
+
+    # Preferred: cards bounded by one offer heading. Some sites use headings in each card.
+    for heading in soup.find_all(['h2', 'h3']):
+        text = heading.get_text(' ', strip=True)
+        if not re.match(r'^(?:Giảm|Freeship|Miễn phí|Hoàn)\b', text, re.I):
+            continue
+        parent = heading.parent
+        for _ in range(5):
+            if parent is None or parent.name in ('body', 'html'):
+                break
+            lines = [clean_text(x, 200) for x in parent.stripped_strings]
+            joined = ' '.join(lines)
+            if len(lines) > 28 or len(joined) > 1100:
+                break
+            if 'HSD:' in joined and 'Đơn tối thiểu' in joined:
+                # Always link back to the published source page. The original link
+                # is untrusted and can be a tracked affiliate redirect.
+                accept(lines)
+                break
+            parent = parent.parent
+
+    # Fallback for layouts with non-semantic headings: read bounded visible text.
+    if not results:
+        lines = [clean_text(x, 180) for x in soup.stripped_strings]
+        for i, val in enumerate(lines):
+            if re.search(r'\bHSD\s*:', val, re.I):
+                accept(lines[max(0, i-2): i+9])
+    return results[:80]
+
+
+def mekoupon_offers(platform: str, reference: datetime | None = None) -> list[dict]:
+    reference = reference or now_vn()
+    url = 'https://mekoupon.com/ma-giam-gia/' + ('shopee' if platform == 'Shopee' else 'tiktok-shop')
+    html = http_get(url).decode('utf-8', errors='replace')
+    return parse_mekoupon_cards(html, platform, reference, url)
+
+
 def external_feed_offers(url: str, key: str) -> list[dict]:
     # Outbound fetching from user-specified URLs is NOT exposed through public API.
     # Operator may configure only raw GitHub/Gist domain; no internal address fetching.
@@ -272,7 +369,9 @@ class Source:
 
 
 def build_sources(manual: Path, news: bool = True, blog: bool = True, external_feeds: list[str] | None = None) -> list[Source]:
-    sources = [Source('manual','Nguồn JSON quản trị',lambda: curated_offers(manual),24*365)]
+    sources = [Source('manual','Nguồn JSON quản trị',lambda: curated_offers(manual),24*365),
+               Source('mekoupon_shopee','Mekoupon · Mã Shopee',lambda: mekoupon_offers('Shopee'),48),
+               Source('mekoupon_tiktok','Mekoupon · Mã TikTok',lambda: mekoupon_offers('TikTok Shop'),48)]
     if news:
         sources.extend((Source('news_shopee','Google News · Shopee',lambda:news_offers('Shopee'),72),
                         Source('news_tiktok','Google News · TikTok Shop',lambda:news_offers('TikTok Shop'),72)))

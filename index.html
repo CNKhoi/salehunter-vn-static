@@ -1,81 +1,88 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#111827" />
-  <meta name="description" content="SaleHunter VN — Theo dõi voucher, mã giảm giá và flash sale Shopee, TikTok Shop từ nguồn công khai." />
-  <title>SaleHunter VN V2 — Radar ưu đãi Shopee & TikTok Shop</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf9f6">
+  <meta name="description" content="SaleHunter VN - Tổng hợp mã nhập tay và voucher Shopee, TikTok Shop từ nguồn công khai.">
+  <title>SaleHunter VN · Săn mã thông minh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
   <script src="./config.js" defer></script>
   <script src="./main.js" defer></script>
 </head>
 <body>
-  <div class="shell">
-    <aside class="sidebar" aria-label="Điều hướng">
-      <a class="brand" href="./" aria-label="SaleHunter VN - Trang chủ">
-        <span class="brand-icon">S<span>✦</span></span><span class="brand-type"><b>SaleHunter</b><small>VIETNAM EDITION</small></span>
-      </a>
-      <div class="section-label">KHÁM PHÁ</div>
-      <nav class="nav" id="sidebarNav">
-        <button class="nav-link active" data-nav="all"><span>▦</span> Tổng quan <span class="nav-count" id="navCount">0</span></button>
-        <button class="nav-link" data-nav="shopee"><span class="nav-dot orange"></span> Shopee</button>
-        <button class="nav-link" data-nav="tiktok"><span class="nav-dot black"></span> TikTok Shop</button>
-        <button class="nav-link" data-nav="saved"><span>♡</span> Đã lưu <span class="nav-count" id="savedCount">0</span></button>
-      </nav>
-      <div class="section-label space-top">CÔNG CỤ</div>
-      <nav class="nav">
-        <button class="nav-link" id="sidebarRefresh"><span>↻</span> Làm mới dữ liệu</button>
-        <a class="nav-link" href="https://shopee.vn/m/ma-giam-gia" target="_blank" rel="noopener noreferrer"><span>↗</span> Kho mã Shopee</a>
-        <a class="nav-link" href="https://www.tiktok.com/shop" target="_blank" rel="noopener noreferrer"><span>↗</span> TikTok Shop</a>
-      </nav>
-      <div class="sidebar-bottom"><div class="status-dot"></div><div><strong>Nguồn dữ liệu công khai</strong><small>Không cần tài khoản mua sắm</small></div></div>
-    </aside>
-
-    <div class="workspace">
-      <header class="topbar">
-        <div class="breadcrumb">Khám phá <span>/</span> <strong>Trung tâm ưu đãi</strong></div>
-        <div class="top-actions"><span class="time-label" id="lastUpdated">Chưa cập nhật</span><button class="refresh small" id="topRefresh" type="button"><span class="refresh-icon">↻</span> <span>Làm mới</span></button></div>
-      </header>
-
-      <main class="main">
-        <section class="hero" aria-label="Giới thiệu công cụ">
-          <div class="hero-glow"></div>
-          <div class="hero-content"><div class="hero-eyebrow"><span class="pulse"></span> DEAL RADAR • VIỆT NAM • V2</div>
-            <h1>Đừng bỏ lỡ <em>deal hời.</em><br/>Săn sale thông minh hơn.</h1>
-            <p>Theo dõi thông tin ưu đãi công khai, tìm mã được công bố, sao chép nhanh và kiểm tra điều kiện tại nguồn. Không yêu cầu tài khoản mua sắm.</p>
-            <div class="hero-actions"><button class="hero-btn" id="jumpToDeals">Khám phá ưu đãi <span>→</span></button><span class="hero-sub">Không cần đăng nhập • Miễn phí sử dụng</span></div>
-          </div>
-          <div class="hero-art" aria-hidden="true"><div class="art-ring ring-1"></div><div class="art-ring ring-2"></div><div class="ticket"><span>SALEHUNTER</span><strong>SUPER<br>SALE</strong><small>ƯU ĐÃI TỪ NGUỒN CÔNG KHAI</small></div><div class="float-badge a">⚡ Flash sale</div><div class="float-badge b">🎟 Voucher</div></div>
-        </section>
-
-        <section class="stats" aria-label="Thống kê">
-          <div class="stat"><div class="stat-top"><span>Tổng ưu đãi tìm thấy</span><span class="stat-icon fire">✦</span></div><strong id="metricAll">0</strong><small>Đang hiển thị • có thể chưa xác minh</small></div>
-          <div class="stat"><div class="stat-top"><span>Shopee</span><span class="stat-icon peach">S</span></div><strong id="metricShopee">0</strong><small>Voucher &amp; sự kiện giảm giá</small></div>
-          <div class="stat"><div class="stat-top"><span>TikTok Shop</span><span class="stat-icon dark">♪</span></div><strong id="metricTikTok">0</strong><small>Deal &amp; chương trình ưu đãi</small></div>
-          <div class="stat"><div class="stat-top"><span>Mã có thể sao chép</span><span class="stat-icon mint">⌗</span></div><strong id="metricCodes">0</strong><small>Không bảo đảm dùng được khi thanh toán</small></div>
-        </section>
-
-        <section class="content" id="deals">
-          <div class="section-header"><div><div class="eyebrow">DEAL DISCOVERY</div><h2>Radar ưu đãi mới nhất</h2><p>Hiển thị dữ liệu được bộ quét GitHub Actions tổng hợp; danh sách không đồng nghĩa voucher đang còn lượt hoặc áp dụng được cho giỏ hàng của bạn.</p></div><div class="right-header"><span class="live-chip"><i></i> Dữ liệu cập nhật qua GitHub Actions</span></div></div>
-          <div class="toolbar">
-            <div class="search-input"><span aria-hidden="true">⌕</span><input type="search" id="search" placeholder="Tìm mã, ưu đãi, nguồn tin..." autocomplete="off" aria-label="Tìm kiếm ưu đãi" /><kbd>Ctrl K</kbd></div>
-            <select id="categoryFilter" aria-label="Lọc loại ưu đãi"><option value="all">Tất cả loại</option><option value="Voucher">🎟 Voucher</option><option value="Freeship">🚚 Freeship</option><option value="Flash sale">⚡ Flash sale</option></select>
-            <select id="statusFilter" aria-label="Lọc độ tin cậy"><option value="all">Mọi trạng thái</option><option value="fresh">Nguồn hoạt động tốt</option><option value="stale">Nguồn đang lỗi</option></select>
-            <select id="sortFilter" aria-label="Sắp xếp ưu đãi"><option value="newest">Mới nhất</option><option value="code">Có mã Copy trước</option><option value="platform">Theo sàn</option></select>
-          </div>
-          <div class="tabs-row"><div class="tabs" id="filterTabs" role="tablist" aria-label="Lọc sàn"><button class="tab active" data-tab="all">Tất cả</button><button class="tab" data-tab="shopee">Shopee</button><button class="tab" data-tab="tiktok">TikTok Shop</button><button class="tab" data-tab="copy">Có mã Copy</button><button class="tab" data-tab="saved">♡ Đã lưu</button></div><div class="results-count" id="resultsCount">0 ưu đãi</div></div>
-          <div id="noticeArea" aria-live="polite"></div>
-          <div class="cards" id="dealCards" aria-live="polite"></div><div class="more-wrap"><button id="showMore" class="outline-btn" type="button" hidden>Xem thêm ưu đãi ↓</button></div>
-          <div class="empty" id="emptyState" hidden><div class="empty-icon">🎟️</div><h3>Chưa tìm thấy ưu đãi phù hợp</h3><p id="emptyText">Có thể chưa có thông báo mới từ nguồn công khai. Thử đổi bộ lọc hoặc làm mới dữ liệu.</p><div class="empty-actions"><button id="clearFilters" class="outline-btn">Xóa bộ lọc</button><button id="emptyRefresh" class="refresh">↻ Tải lại</button></div></div>
-        </section>
-
-        <section class="source-panel" id="sourcesSection"><div class="source-title"><div><div class="eyebrow">SOURCE TRANSPARENCY</div><h3>Trạng thái nguồn dữ liệu</h3><p>Hiển thị nguồn đang hoạt động, bị lỗi, lần quét gần nhất. Khi lỗi, dữ liệu cache được gắn nhãn cảnh báo.</p></div><button id="toggleSources" class="outline-btn" aria-expanded="false">Xem chi tiết ⌄</button></div><div id="sourceDetails" hidden></div></section>
-
-        <footer><span>© SaleHunter VN • Công cụ tổng hợp độc lập</span><span>Không liên kết với Shopee / TikTok Shop. Hãy kiểm tra điều kiện trước khi dùng.</span></footer>
-      </main>
+<svg class="svg-sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2ZM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.9" cy="10.9" r="7.2"/><path d="m16 16 5.1 5.1"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 5.8a5.2 5.2 0 0 0-7.4 0L12 7.2l-1.4-1.4a5.2 5.2 0 0 0-7.4 7.4L12 22l8.8-8.8a5.2 5.2 0 0 0 0-7.4Z"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M13 5h6v6M19 5l-9 9"/><path d="M19 14v5H5V5h6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 6v5h-5M4 18v-5h5"/><path d="M5.6 9a7 7 0 0 1 11.5-2L20 11M4 13l2.9 4a7 7 0 0 0 11.6-2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 7h16M7 12h10M10 17h4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 11v6M12 7v1"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="m14 2-9 12h7l-2 8 9-12h-7l2-8Z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-7-7 7 7-7 7"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.6 15.2A8.6 8.6 0 0 1 8.8 3.4 8.6 8.6 0 1 0 20.6 15.2Z"/></symbol>
+</svg>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#top" aria-label="SaleHunter về đầu trang"><span class="brand-symbol"><svg class="icon"><use href="#i-bolt"/></svg></span><span>sale<span class="brand-accent">hunter</span><small>VIETNAM · V3</small></span></a>
+    <div class="sidebar-group-label">KHÁM PHÁ</div>
+    <nav class="sidebar-nav" aria-label="Điều hướng chính">
+      <button class="side-link active" type="button" data-side="all"><span class="nav-icon">▦</span> Tổng quan <span class="nav-tag" id="navTotal">0</span></button>
+      <button class="side-link" type="button" data-side="codes"><span class="nav-icon">⌗</span> Mã nhập tay <span class="nav-tag orange" id="navCodes">0</span></button>
+      <button class="side-link" type="button" data-side="claim"><span class="nav-icon">◈</span> Voucher cần nhận</button>
+      <button class="side-link" type="button" data-side="saved"><svg class="icon"><use href="#i-heart"/></svg> Đã lưu <span class="nav-tag" id="navSaved">0</span></button>
+    </nav>
+    <div class="sidebar-group-label second">SÀN THƯƠNG MẠI</div>
+    <nav class="sidebar-nav" aria-label="Sàn thương mại điện tử">
+      <button class="side-link" type="button" data-merchant="Shopee"><span class="merchant-mini shopee">S</span> Shopee <span class="dot tiny-orange"></span></button>
+      <button class="side-link" type="button" data-merchant="TikTok Shop"><span class="merchant-mini tiktok">♪</span> TikTok Shop <span class="dot tiny-dark"></span></button>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="sidebar-tip"><span class="tip-emoji">✦</span><strong>Mẹo săn sale</strong><p>Ưu tiên copy mã, sau đó kiểm tra điều kiện ở bước thanh toán.</p><a href="#guide">Xem hướng dẫn <span>↗</span></a></div>
+      <p class="sidebar-caption">Tổng hợp từ nguồn công khai<br>Không liên kết chính thức với các sàn.</p>
     </div>
-  </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </aside>
+  <main class="main" id="top">
+    <header class="topbar">
+      <div class="page-route"><span>Khám phá ưu đãi</span><span class="route-sep">/</span><strong>Dashboard</strong></div>
+      <div class="top-controls"><span class="live-tag"><span class="dot pulse"></span> Dữ liệu công khai</span><button class="icon-btn" id="themeToggle" type="button" aria-label="Đổi giao diện sáng/tối"><svg class="icon"><use href="#i-moon"/></svg></button><button class="refresh-btn" id="refreshBtn" type="button"><svg class="icon"><use href="#i-refresh"/></svg><span>Làm mới dữ liệu</span></button></div>
+    </header>
+    <div class="inner">
+      <section class="hero" aria-label="Giới thiệu SaleHunter">
+        <div class="hero-noise"></div>
+        <div class="hero-main"><span class="hero-eyebrow"><svg class="icon"><use href="#i-spark"/></svg> SĂN DEAL DỄ HƠN MỖI NGÀY</span><h1>Ưu đãi xịn.<br><span>Mua sắm thông minh.</span></h1><p>Tìm mã giảm giá Shopee & TikTok Shop tại một nơi. Lọc nhanh, sao chép trong một chạm và kiểm tra nguồn trước khi chốt đơn.</p><div class="hero-actions"><button type="button" class="btn-white" id="heroJump">Khám phá mã giảm giá <svg class="icon"><use href="#i-arrow"/></svg></button><span class="hero-trust"><svg class="icon"><use href="#i-check"/></svg> Không cần đăng nhập</span></div></div>
+        <div class="hero-decoration" aria-hidden="true"><div class="hero-ring ring-one"></div><div class="hero-ring ring-two"></div><div class="hero-bubble bubble-one">SALE <span>↓</span></div><div class="hero-bubble bubble-two">%</div><div class="hero-ticket"><div class="ticket-caption">SĂN MÃ THÔNG MINH</div><div class="ticket-number">SAVE<span>MORE</span></div><div class="ticket-bottom"><span>SHOPEE</span><span class="ticket-dot"></span><span>TIKTOK SHOP</span></div></div></div>
+      </section>
+      <section class="overview" aria-label="Thống kê nguồn dữ liệu">
+        <div class="metric"><div class="metric-icon m-one">◈</div><div><div class="metric-label">Tổng ưu đãi</div><div class="metric-value" id="statAll">—</div></div><span class="metric-foot">Đang hiển thị</span></div>
+        <div class="metric"><div class="metric-icon m-two"><svg class="icon"><use href="#i-copy"/></svg></div><div><div class="metric-label">Mã nhập tay</div><div class="metric-value" id="statCodes">—</div></div><span class="metric-foot">Có thể sao chép</span></div>
+        <div class="metric"><div class="metric-icon m-three">S</div><div><div class="metric-label">Shopee</div><div class="metric-value" id="statShopee">—</div></div><span class="metric-foot">Ưu đãi công khai</span></div>
+        <div class="metric"><div class="metric-icon m-four">♪</div><div><div class="metric-label">TikTok Shop</div><div class="metric-value" id="statTikTok">—</div></div><span class="metric-foot">Ưu đãi công khai</span></div>
+      </section>
+      <div class="alert-stack" id="alerts" role="status" aria-live="polite"></div>
+      <section class="deals" id="deals">
+        <div class="section-head"><div><span class="section-kicker">KHO ƯU ĐÃI</span><h2>Tìm deal dành cho bạn <span class="title-star">✳</span></h2><p>Những mã được công bố sẽ có nút Copy riêng. Ưu đãi còn lại cần mở nguồn để nhận.</p></div><span class="updated" id="updated"><svg class="icon"><use href="#i-clock"/></svg> Đang tải thời gian quét…</span></div>
+        <div class="platform-filters" aria-label="Chọn sàn"><button type="button" class="platform-chip active" data-platform="all">✳ Tất cả <span id="countAll">0</span></button><button type="button" class="platform-chip" data-platform="Shopee"><span class="platform-logo small-shopee">S</span> Shopee <span id="countShopee">0</span></button><button type="button" class="platform-chip" data-platform="TikTok Shop"><span class="platform-logo small-tiktok">♪</span> TikTok Shop <span id="countTikTok">0</span></button></div>
+        <div class="filter-panel"><div class="mode-switch" role="group" aria-label="Loại ưu đãi"><button type="button" data-mode="codes" class="mode-btn active">⌗ Mã nhập tay</button><button type="button" data-mode="all" class="mode-btn">Tất cả</button><button type="button" data-mode="claim" class="mode-btn">Cần nhận trên sàn</button><button type="button" data-mode="saved" class="mode-btn">♡ Đã lưu</button></div><div class="filter-tools"><label class="search-box"><svg class="icon"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Tìm mã, tên ưu đãi…" autocomplete="off" aria-label="Tìm mã và ưu đãi"><kbd>⌘ K</kbd></label><label class="select-box"><svg class="icon"><use href="#i-filter"/></svg><select id="sort" aria-label="Sắp xếp"><option value="featured">Ưu tiên mã mới</option><option value="recent">Mới đăng</option><option value="expiry">Sắp hết hạn</option><option value="platform">Theo sàn</option></select><svg class="icon chevron"><use href="#i-chevron"/></svg></label></div></div>
+        <div class="listing-bar"><span id="resultText">Đang tải ưu đãi…</span><span class="listing-note"><span class="dot"></span> Chưa xác minh tại thanh toán</span></div>
+        <div class="cards-grid" id="cards" aria-live="polite"><div class="loading-card"><div class="skeleton" style="height:145px"></div><div class="skeleton" style="height:26px;width:70%"></div><div class="skeleton" style="height:20px"></div></div><div class="loading-card"><div class="skeleton" style="height:145px"></div><div class="skeleton" style="height:26px;width:70%"></div><div class="skeleton" style="height:20px"></div></div><div class="loading-card"><div class="skeleton" style="height:145px"></div><div class="skeleton" style="height:26px;width:70%"></div><div class="skeleton" style="height:20px"></div></div></div>
+        <div class="empty" id="empty" hidden><div class="empty-illustration">✳</div><h3 id="emptyTitle">Chưa có ưu đãi phù hợp</h3><p id="emptyDesc">Các mã được cập nhật dựa trên nguồn công khai. Bạn có thể thử bộ lọc khác.</p><div class="empty-actions"><button class="primary-button" type="button" id="viewAll">Xem tất cả ưu đãi <svg class="icon"><use href="#i-arrow"/></svg></button><button class="outline-button" type="button" id="emptyRefresh">Tải lại dữ liệu</button></div></div>
+        <div class="more-wrap"><button type="button" id="showMore" class="more-button" hidden>Xem thêm ưu đãi <svg class="icon"><use href="#i-chevron"/></svg></button></div>
+      </section>
+      <section class="below-grid" id="guide"><article class="info-card"><span class="section-kicker">MẸO SỬ DỤNG</span><h3>3 bước chốt deal nhanh ✦</h3><div class="steps"><div><b>01</b><span><strong>Tìm và sao chép</strong><small>Chọn “Mã nhập tay” và bấm Sao chép.</small></span></div><div><b>02</b><span><strong>Kiểm tra điều kiện</strong><small>Xem đơn tối thiểu, hạn dùng, sản phẩm áp dụng.</small></span></div><div><b>03</b><span><strong>Áp mã khi thanh toán</strong><small>Dán mã hoặc nhận voucher trong ứng dụng sàn.</small></span></div></div></article><article class="sources-card"><div class="sources-top"><div><span class="section-kicker">MINH BẠCH NGUỒN</span><h3>Trạng thái đồng bộ</h3></div><button class="sources-toggle" id="sourcesToggle" type="button" aria-expanded="true">Chi tiết <svg class="icon"><use href="#i-chevron"/></svg></button></div><div class="source-list" id="sources"></div><p class="sources-disclaimer">Không có truy cập tài khoản cá nhân hoặc API ưu đãi riêng của Shopee / TikTok Shop. Trạng thái “thành công” chỉ xác nhận đã đọc nguồn, không xác nhận mã dùng được.</p></article></section>
+      <footer class="footer"><span><strong>salehunter</strong> VN © 2026 · Tổng hợp voucher công khai</span><span>Thiết kế cho trải nghiệm săn mã nhanh và minh bạch <span class="heart">♥</span></span></footer>
+    </div>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>

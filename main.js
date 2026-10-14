@@ -1,231 +1,132 @@
 'use strict';
-const $ = (id) => document.getElementById(id);
-const LABEL_TIME = new Intl.DateTimeFormat('vi-VN', {timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-const STORE_KEY = 'salehunter-favorites-v2';
-let remote = {items: [], sources: [], stats: {}, is_scanning: false, last_updated: null, has_source_errors: false};
-let remoteVersion = '';
-const settings = window.SALEHUNTER_CONFIG || {};
-const feedUrl = String(settings.dataUrl || './data/offers.json').trim();
-const reloadMs = Math.max(30, Math.min(3600, Number(settings.reloadSeconds) || 60)) * 1000;
-let currentTab = 'all';
-let visibleCount = 36;
-let favorites = new Set();
-function expired(item) {
-  if (!item.expires_at) return false;
-  const time = Date.parse(item.expires_at);
-  return Number.isFinite(time) && time <= Date.now();
-}
-
-let toastTimer, fetchBusy = false, queryTimer, timer;
-try { favorites = new Set(JSON.parse(localStorage.getItem(STORE_KEY) || '[]')); } catch { /* storage disabled */ }
-
-function el(tag, cls, txt) {
-  const node = document.createElement(tag);
-  if (cls) node.className = cls;
-  if (txt !== undefined) node.textContent = String(txt);
-  return node;
-}
-function toast(message) {
-  const node = $('toast'); node.textContent = message; node.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove('show'), 3300);
-}
-function shortTime(value) {
-  if (!value) return 'Chưa có lần quét thành công';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Chưa rõ' : LABEL_TIME.format(date);
-}
-function safeLink(raw) {
-  try { const u = new URL(raw); return u.protocol === 'https:' && !u.username && !u.password ? u.href : null; }
-  catch { return null; }
-}
-function setTab(value) {
-  currentTab = value;
-  visibleCount = 36;
-  document.querySelectorAll('[data-tab]').forEach(x => x.classList.toggle('active', x.dataset.tab === value));
-  document.querySelectorAll('[data-nav]').forEach(x => x.classList.toggle('active', x.dataset.nav === value));
-  renderCards();
-}
-function filtered() {
-  const q = $('search').value.trim().toLocaleLowerCase('vi-VN');
-  const kind = $('categoryFilter').value;
-  const state = $('statusFilter').value;
-  const rows = (remote.items || []).filter(item => {
-    if (expired(item)) return false;
-    if (currentTab === 'shopee' && item.platform !== 'Shopee') return false;
-    if (currentTab === 'tiktok' && item.platform !== 'TikTok Shop') return false;
-    if (currentTab === 'copy' && !item.code) return false;
-    if (currentTab === 'saved' && !favorites.has(item.id)) return false;
-    if (kind !== 'all' && kind !== item.kind) return false;
-    if (state === 'fresh' && item.stale) return false;
-    if (state === 'stale' && !item.stale) return false;
-    return !q || [item.title, item.description, item.source, item.platform, item.code, item.min_spend]
-      .filter(Boolean).join(' ').toLocaleLowerCase('vi-VN').includes(q);
-  });
-  const stamp = item => new Date(item.published_at || item.last_seen || 0).getTime() || 0;
-  const sorting = $('sortFilter').value;
-  if (sorting === 'code') rows.sort((a,b) => Number(!!b.code)-Number(!!a.code) || Number(a.stale)-Number(b.stale) || stamp(b)-stamp(a));
-  else if (sorting === 'platform') rows.sort((a,b) => a.platform.localeCompare(b.platform) || stamp(b)-stamp(a));
-  else rows.sort((a,b) => Number(a.stale)-Number(b.stale) || stamp(b)-stamp(a));
-  return rows;
-}
-function makeCard(item) {
-  const card = el('article', 'deal-card' + (item.stale ? ' deal-stale' : ''));
-  const top = el('div','card-top');
-  const platform = el('div','platform');
-  platform.append(el('span','platform-logo'+(item.platform==='TikTok Shop'?' tiktok':''),item.platform==='TikTok Shop'?'♪':'S'),
-                  el('span',null,item.platform));
-  top.append(platform,el('span','kind-badge'+(item.kind==='Freeship'?' freeship':item.kind==='Flash sale'?' flash':''),item.kind));
-  card.append(top);
-  if (item.stale) card.append(el('div','freshness-warning','⚠ Nguồn đang lỗi • Dữ liệu lưu từ lần quét trước'));
-  card.append(el('h3','card-title',item.title));
-  card.append(el('div','discount'+(!item.discount?' empty-discount':''),item.discount ? 'Giảm '+item.discount : 'Ưu đãi • Xem điều kiện'));
-  if (item.description) card.append(el('div','description',item.description));
-  if (item.min_spend) card.append(el('div','condition-note','Đơn tối thiểu: '+item.min_spend));
-  if (item.expires_at) card.append(el('div','condition-note','Hạn công bố: '+shortTime(item.expires_at)));
-  const codeWrap=el('div','code-wrap');
-  if (item.code) {
-    const content=el('div'); content.append(el('span','code-label','MÃ ĐƯỢC CÔNG BỐ'),el('strong','code-value',item.code));
-    const copy=el('button','copy-small','▢ Sao chép'); copy.type='button';
-    copy.setAttribute('aria-label','Sao chép mã '+item.code);
-    copy.addEventListener('click',()=>copyCode(item.code)); codeWrap.append(content,copy);
-  } else {
-    const content=el('div'); content.append(el('span','code-label','CHƯA CÓ MÃ NHẬP TAY'),
-      el('span','code-none','Mở nguồn để xem cách nhận ưu đãi'));
-    codeWrap.append(content,el('span','copy-icon','↗'));
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const config = window.SALEHUNTER_CONFIG || {};
+  const feedUrl = typeof config.dataUrl === 'string' && config.dataUrl.trim() ? config.dataUrl.trim() : './data/offers.json';
+  const reloadMs = Math.max(60, Math.min(Number(config.reloadSeconds) || 180, 3600)) * 1000;
+  const STORE_FAV = 'salehunter-v3-favs';
+  const STORE_THEME = 'salehunter-v3-theme';
+  const state = {feed: {items:[],sources:[],last_updated:null,stats:{}},platform:'all',mode:'codes',query:'',sort:'featured',visible:24,loading:false,hasLoaded:false,bundledFallback:false};
+  const favorites = new Set(safeRead(STORE_FAV, []));
+  let toastTimer;
+  let refreshTimer;
+  let searchTimer;
+  let lastSignature = '';
+  const icon = (name) => { const svg = document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('class','icon'); svg.setAttribute('aria-hidden','true'); const use=document.createElementNS('http://www.w3.org/2000/svg','use');use.setAttribute('href','#i-'+name);svg.append(use);return svg; };
+  const el = (tag,cls,txt) => {const node = document.createElement(tag); if(cls) node.className=cls; if(txt!==undefined && txt!==null) node.textContent=String(txt);return node;};
+  function safeRead(key, fallback){try{const obj=JSON.parse(localStorage.getItem(key));return Array.isArray(obj)?obj:fallback}catch{return fallback}}
+  function dateValue(raw){const n=Date.parse(raw || '');return Number.isFinite(n)?n:null}
+  function formatted(raw){const time=dateValue(raw);if(time===null)return 'Chưa rõ';return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(time));}
+  function expiration(raw){const time=dateValue(raw);if(time===null)return 'Chưa công bố';return new Intl.DateTimeFormat('vi-VN',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric'}).format(new Date(time));}
+  function validLink(raw){try{const url=new URL(String(raw||''));return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}}
+  function hasCode(item){return typeof item.code==='string' && /^[A-Z0-9][A-Z0-9_-]{4,27}$/i.test(item.code)}
+  function activeItems(){return (state.feed.items||[]).filter(item=>item&&typeof item==='object'&&(item.platform==='Shopee'||item.platform==='TikTok Shop')&&(!dateValue(item.expires_at)||dateValue(item.expires_at)>Date.now()));}
+  function showToast(msg){const node=$('toast');node.textContent=msg;node.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('show'),3500)}
+  async function copyText(value){
+    try{
+      if(!/^[A-Z0-9][A-Z0-9_-]{4,27}$/i.test(value))throw Error('Mã không đúng định dạng');
+      if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(value);
+      else {const field=el('textarea');field.value=value;field.style.position='fixed';field.style.opacity='0';document.body.append(field);field.focus();field.select();if(!document.execCommand('copy'))throw Error('Clipboard');field.remove();}
+      showToast('✓ Đã sao chép mã '+value+' · Kiểm tra khi thanh toán');
+    }catch{showToast('Không thể copy tự động. Bạn có thể chọn ký tự mã để sao chép thủ công.');}
   }
-  card.append(codeWrap);
-  card.append(el('div','verify-note','Chưa xác minh mã còn lượt / áp dụng được ở thanh toán'));
-  const foot=el('div','card-foot');
-  const source=el('span','source-link','Nguồn: '+(item.source||'Chưa rõ'));
-  source.title=item.source||'';
-  foot.append(source,el('span',null,shortTime(item.published_at || item.last_seen)));
-  card.append(foot);
-  const actions=el('div','bottom-actions');
-  const href=safeLink(item.url);
-  const link=el('a','view-btn',item.direct_link?'↗ Mở trên sàn':'↗ Xem thông tin nguồn');
-  if (href) {link.href=href; link.target='_blank';link.rel='noopener noreferrer';}
-  else {link.setAttribute('aria-disabled','true');}
-  const active=favorites.has(item.id);
-  const save=el('button','save-btn'+(active?' saved':''),active?'♥':'♡'); save.type='button';
-  save.setAttribute('aria-label',active?'Bỏ lưu':'Lưu ưu đãi');
-  save.addEventListener('click',()=>{
-    favorites.has(item.id) ? favorites.delete(item.id) : favorites.add(item.id);
-    try {localStorage.setItem(STORE_KEY,JSON.stringify([...favorites]));} catch { /* blocked */ }
-    renderCards(); $('savedCount').textContent=favorites.size;
-    toast(favorites.has(item.id)?'Đã lưu vào danh sách yêu thích':'Đã bỏ lưu');
-  });
-  actions.append(link,save); card.append(actions);
-  return card;
-}
-async function copyCode(code) {
-  try {
-    if (!/^[A-Z0-9][A-Z0-9_-]{4,27}$/i.test(code)) throw new Error('Mã không đúng định dạng');
-    if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(code);
-    else {
-      const field=el('textarea'); field.value=code;field.style.position='fixed';field.style.opacity='0';
-      document.body.append(field);field.focus();field.select();
-      const success=document.execCommand('copy');field.remove();if(!success) throw Error('Clipboard bị khóa');
+  function sortList(items){const result=[...items];const time=(x)=>dateValue(x.published_at)||dateValue(x.last_seen)||0;
+    result.sort((a,b)=>{switch(state.sort){
+      case 'recent':return time(b)-time(a);
+      case 'expiry':return (dateValue(a.expires_at)||Number.MAX_SAFE_INTEGER)-(dateValue(b.expires_at)||Number.MAX_SAFE_INTEGER);
+      case 'platform':return a.platform.localeCompare(b.platform,'vi')||time(b)-time(a);
+      default:return Number(hasCode(b))-Number(hasCode(a))||Number(!b.stale)-Number(!a.stale)||time(b)-time(a);
+    }});return result;
+  }
+  function filtered(){const q=state.query.toLocaleLowerCase('vi').trim();return sortList(activeItems().filter(item=>
+    (state.platform==='all'||item.platform===state.platform)&&
+    (state.mode==='all'||state.mode==='codes'&&hasCode(item)||state.mode==='claim'&&!hasCode(item)||state.mode==='saved'&&favorites.has(item.id))&&
+    (!q||[item.title,item.description,item.code,item.discount,item.min_spend,item.source].join(' ').toLocaleLowerCase('vi').includes(q))));}
+  function renderMetrics(){const items=activeItems(), codes=items.filter(hasCode).length, shopee=items.filter(x=>x.platform==='Shopee').length, tiktok=items.filter(x=>x.platform==='TikTok Shop').length;
+    for(const [id,value] of Object.entries({statAll:items.length,statCodes:codes,statShopee:shopee,statTikTok:tiktok,navTotal:items.length,navCodes:codes,navSaved:favorites.size,countAll:items.length,countShopee:shopee,countTikTok:tiktok}))$(id).textContent=String(value);
+    $('updated').replaceChildren(icon('clock'),document.createTextNode('Cập nhật nguồn: '+formatted(state.feed.last_updated)));
+  }
+  function card(item){
+    const isTik=item.platform==='TikTok Shop';const card=el('article','offer-card'+(isTik?' tiktok':''));
+    const cover=el('div','offer-cover');cover.append(el('div','cover-orb'),el('div','cover-circle'));
+    const top=el('div','cover-top'),merchant=el('span','merchant-pill');merchant.append(el('span','merchant-pill-icon',isTik?'♪':'S'),document.createTextNode(item.platform));
+    top.append(merchant,el('span','type-badge',hasCode(item)?'CÓ MÃ COPY':'NHẬN VOUCHER'));
+    let visual=item.discount?String(item.discount):'';if(!visual)visual=hasCode(item)?'MÃ GIẢM GIÁ':'ƯU ĐÃI';
+    cover.append(top,el('div','cover-discount',visual.length>30?visual.slice(0,28)+'…':visual),el('div','cover-subtitle',hasCode(item)?'SAO CHÉP MÃ NHẬP TAY':'XEM HƯỚNG DẪN NHẬN MÃ'));
+    card.append(cover);
+    if(item.stale)card.append(el('div','stale-banner','⚠ Nguồn đang lỗi · Dữ liệu từ lần quét trước'));
+    const body=el('div','offer-body');body.append(el('h3','offer-title',item.title||'Ưu đãi chưa có tên'));
+    const conditions=el('div','offer-conditions');conditions.append(el('span',null,item.min_spend?String(item.min_spend):'Điều kiện: xem nguồn'),el('span',null,item.expires_at?'HSD '+expiration(item.expires_at):'Hạn: chưa công bố'));body.append(conditions);
+    const coupon=el('div','coupon-box'+(hasCode(item)?'':' no-code')),content=el('div');content.append(el('span','code-label',hasCode(item)?'MÃ ĐƯỢC CÔNG BỐ':'KHÔNG CÓ CHUỖI MÃ NHẬP TAY'),el('strong','code-value',hasCode(item)?item.code:'Nhận ưu đãi trên trang nguồn'));coupon.append(content);
+    if(hasCode(item)){const b=el('button','copy-btn');b.type='button';b.append(icon('copy'),document.createTextNode('Copy mã'));b.setAttribute('aria-label','Sao chép mã '+item.code);b.addEventListener('click',()=>copyText(item.code));coupon.append(b);}
+    else coupon.append(icon('external'));
+    body.append(coupon,el('div','card-disclaimer','Nguồn công khai · Chưa xác minh mã còn lượt khi thanh toán'));
+    const footer=el('div','card-footer');const source=el('span','card-source');source.append(document.createTextNode('Nguồn: '),el('strong',null,item.source||'Công khai'));source.title=item.source||'';footer.append(source);
+    const actions=el('div','card-actions');const href=validLink(item.url);const out=el('a','open-source');out.append(document.createTextNode('Xem nguồn'),icon('external'));
+    if(href){out.href=href;out.target='_blank';out.rel='noopener noreferrer';}else {out.removeAttribute('href');out.setAttribute('aria-disabled','true');}
+    actions.append(out);const fav=el('button','save-btn'+(favorites.has(item.id)?' saved':''));fav.type='button';fav.append(icon('heart'));fav.setAttribute('aria-label',favorites.has(item.id)?'Bỏ lưu ưu đãi':'Lưu ưu đãi');fav.addEventListener('click',()=>{
+      if(favorites.has(item.id))favorites.delete(item.id);else favorites.add(item.id);
+      try{localStorage.setItem(STORE_FAV,JSON.stringify([...favorites].slice(-500)))}catch{}
+      renderMetrics();renderCards();showToast(favorites.has(item.id)?'♡ Đã thêm vào mục Đã lưu':'Đã bỏ lưu ưu đãi');
+    });actions.append(fav);footer.append(actions);body.append(footer);card.append(body);return card;
+  }
+  function renderCards(){const rows=filtered();$('resultText').textContent=rows.length+' ưu đãi phù hợp';const grid=$('cards');const fragment=document.createDocumentFragment();
+    for(const item of rows.slice(0,state.visible))fragment.append(card(item));grid.replaceChildren(fragment);
+    $('showMore').hidden=rows.length<=state.visible;
+    const empty=rows.length===0; $('empty').hidden=!empty;
+    if(empty){let title='Chưa tìm thấy mã phù hợp',desc='Hãy thử thay đổi bộ lọc hoặc tìm kiếm.';
+      if(state.mode==='codes'&&!state.query&&state.platform==='all'){title='Chưa tìm được mã nhập tay mới';desc='Bộ quét chưa trích xuất được chuỗi mã hợp lệ từ các nguồn hiện tại. Bạn có thể chọn “Tất cả” để xem các ưu đãi khác hoặc kiểm tra trạng thái nguồn bên dưới.'}
+      if(state.mode==='saved'){title='Chưa có ưu đãi đã lưu';desc='Nhấn nút trái tim ở thẻ ưu đãi để lưu lại và tìm nhanh lần sau.'}
+      if(!state.hasLoaded){title='Đang tải dữ liệu';desc='Đang kết nối với kho voucher công khai trên GitHub…'}
+      $('emptyTitle').textContent=title;$('emptyDesc').textContent=desc;
     }
-    toast('Đã sao chép: '+code+' • Hãy kiểm tra mã tại thanh toán');
-  } catch {toast('Không thể sao chép tự động. Hãy chọn mã hiển thị và sao chép thủ công.');}
-}
-function renderSources() {
-  const panel=$('sourceDetails');panel.replaceChildren();
-  const wrap=el('div','source-list');
-  if (!remote.sources.length) wrap.append(el('p',null,'Chưa cấu hình nguồn dữ liệu.'));
-  for (const source of remote.sources) {
-    const row=el('div','source-row');const left=el('div');
-    left.append(el('strong',null,source.name),el('small',null,'Quét gần nhất: '+shortTime(source.last_attempt)));
-    if (source.error) left.append(el('small','source-error',source.error));
-    const caption=source.ok===null?'Chưa quét':source.ok?`${source.count} mục • thành công`:'Nguồn lỗi • dùng cache nếu có';
-    row.append(left,el('span',source.ok===null?'pending':source.ok?'ok':'fail',caption));wrap.append(row);
   }
-  panel.append(wrap);
-}
-function renderCards() {
-  const rows=filtered();$('resultsCount').textContent=rows.length+' ưu đãi';
-  const fragment=document.createDocumentFragment();
-  for (const item of rows.slice(0,visibleCount)) fragment.append(makeCard(item));
-  $('dealCards').replaceChildren(fragment);
-  $('showMore').hidden=rows.length<=visibleCount;
-  const empty=rows.length===0;
-  $('emptyState').hidden=!empty;
-  $('emptyText').textContent=remote.is_scanning?'Đang quét; dữ liệu sẽ xuất hiện nếu nguồn có ưu đãi phù hợp.' :
-    remote.items.length?'Không có kết quả với bộ lọc đang chọn. Hãy thay đổi từ khóa hoặc sàn.':'Chưa có ưu đãi được nguồn xác nhận đã công bố gần đây. Bạn có thể mở kho mã trực tiếp trên các sàn.';
-}
-function render() {
-  const active=(remote.items||[]).filter(item => !expired(item));
-  const metrics={...remote.stats,all:active.length, shopee:active.filter(x=>x.platform==='Shopee').length,
-    tiktok:active.filter(x=>x.platform==='TikTok Shop').length, codes:active.filter(x=>!!x.code).length};
-  $('metricAll').textContent=metrics.all??remote.items.length;
-  $('metricShopee').textContent=metrics.shopee??0;
-  $('metricTikTok').textContent=metrics.tiktok??0;
-  $('metricCodes').textContent=metrics.codes??0;
-  $('navCount').textContent=metrics.all??0;
-  $('savedCount').textContent=favorites.size;
-  $('lastUpdated').textContent='Quét thành công: '+shortTime(remote.last_updated);
-  for (const id of ['topRefresh','sidebarRefresh','emptyRefresh']) $(id).disabled=false;
-  $('topRefresh').querySelector('.refresh-icon').classList.toggle('spin',!!remote.is_scanning);
-  const notices=$('noticeArea'); notices.replaceChildren();
-  if (!settings.dataUrl) notices.append(el('div','notice','Chưa kết nối nguồn JSON GitHub. Hiện chỉ đọc dữ liệu đi kèm lúc tải mã nguồn lên Space. Xem README để bật tự động cập nhật.'));
-  if (remote.is_scanning) notices.append(el('div','notice','Dữ liệu nguồn đang cập nhật.'));
-  if (remote.has_source_errors) notices.append(el('div','notice error','Một số nguồn không truy cập được. Các ưu đãi từ cache được đánh dấu cảnh báo; hãy kiểm tra tại nguồn.'));
-  if (metrics.stale) notices.append(el('div','notice','Có '+metrics.stale+' ưu đãi lấy từ dữ liệu lưu khi nguồn lỗi. Không xem đây là voucher đã được xác minh.'));
-  if (remote.last_attempt && Date.now() - Date.parse(remote.last_attempt) > 90 * 60 * 1000) {
-    notices.append(el('div','notice error','Dữ liệu đã quá 90 phút chưa được quét lại. Kiểm tra GitHub Actions hoặc các nguồn trước khi sử dụng mã.'));
+  function renderSources(){const area=$('sources');const fragment=document.createDocumentFragment();const rows=Array.isArray(state.feed.sources)?state.feed.sources:[];
+    if(!rows.length)fragment.append(el('p',null,'Chưa có dữ liệu trạng thái nguồn.'));
+    for(const s of rows){const row=el('div','source-row'),left=el('div');left.append(el('strong',null,s.name||s.key||'Nguồn'),el('small',null,'Quét thành công: '+formatted(s.last_success)));const badge=el('span','source-status'+(s.ok===false?' failed':s.ok===null?' pending':''),s.ok===false?'Lỗi / cache':s.ok===true?`${Number(s.count)||0} mục`:'Chưa chạy');row.append(left,badge);fragment.append(row)}area.replaceChildren(fragment);
   }
-  renderCards();renderSources();
-}
-async function load({force = false} = {}) {
-  if (fetchBusy) return;
-  fetchBusy = true;
-  try {
-    // Data is produced by scheduled GitHub Actions, not a HF backend endpoint.
-    const address = new URL(feedUrl, window.location.href);
-    if (!['https:', 'http:'].includes(address.protocol)) throw Error('Nguồn dữ liệu không hợp lệ');
-    // Polling uses conditional browser revalidation. Force-refresh bypasses stale caches.
-    if (force) address.searchParams.set('_refresh', String(Date.now()));
-    const response = await fetch(address.toString(), {cache: force ? 'no-store' : 'no-cache', mode:'cors'});
-    if (!response.ok) throw new Error('HTTP '+response.status);
-    const data = await response.json();
-    if (!data || !Array.isArray(data.items) || !Array.isArray(data.sources))
-      throw Error('JSON thiếu danh sách ưu đãi hoặc trạng thái nguồn');
-    const checksum = JSON.stringify([data.last_attempt, data.stats, data.sources, data.items]);
-    if (checksum !== remoteVersion || force) {
-      remoteVersion = checksum;
-      remote = data;
-      render();
-    }
-    if (force) toast('Đã tải dữ liệu công khai mới nhất đang có');
-  } catch(error) {
-    $('noticeArea').replaceChildren(el('div','notice error',
-      'Không tải được nguồn dữ liệu: '+error.message+' • Danh sách đã xem vẫn được giữ trên trang. Kiểm tra cấu hình JSON và repo GitHub public.'));
-    if (force) toast('Không thể cập nhật. Hãy kiểm tra nguồn dữ liệu.');
-  } finally {fetchBusy = false;}
-}
-function refresh() { return load({force:true}); }
-function clearFilters() {
-  $('search').value='';$('categoryFilter').value='all';$('statusFilter').value='all';$('sortFilter').value='newest';setTab('all');
-}
-function schedule() {
-  clearTimeout(timer);
-  timer=setTimeout(async()=>{if (!document.hidden) await load();schedule();},reloadMs);
-}
-for (const element of document.querySelectorAll('[data-tab]')) element.addEventListener('click',()=>setTab(element.dataset.tab));
-for (const element of document.querySelectorAll('[data-nav]')) element.addEventListener('click',()=>{setTab(element.dataset.nav);$('deals').scrollIntoView({behavior:'smooth'});});
-for (const id of ['topRefresh','sidebarRefresh','emptyRefresh']) $(id).addEventListener('click',refresh);
-$('search').addEventListener('input',()=>{clearTimeout(queryTimer);queryTimer=setTimeout(()=>{visibleCount=36;renderCards();},180);});
-for (const id of ['categoryFilter','sortFilter','statusFilter']) $(id).addEventListener('change',()=>{visibleCount=36;renderCards();});
-$('showMore').addEventListener('click',()=>{visibleCount+=36;renderCards();});
-$('clearFilters').addEventListener('click',clearFilters);
-$('jumpToDeals').addEventListener('click',()=>$('deals').scrollIntoView({behavior:'smooth'}));
-$('toggleSources').addEventListener('click',()=>{
-  const expanded=$('sourceDetails').hidden; $('sourceDetails').hidden=!expanded;
-  $('toggleSources').setAttribute('aria-expanded',String(expanded));
-  $('toggleSources').textContent=expanded?'Thu gọn ⌃':'Xem chi tiết ⌄';
-});
-document.addEventListener('keydown',event=>{
-  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k') {event.preventDefault();$('search').focus();}
-});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden) load();});
-load().finally(schedule);
+  function notice(message,error=false){const box=el('div','alert'+(error?' error':''));box.append(icon('info'),el('span',null,message));return box;}
+  function renderAlerts(){const area=$('alerts');area.replaceChildren();const feed=state.feed;const items=activeItems();if(feed.has_source_errors)area.append(notice('Một hoặc nhiều nguồn đang lỗi. Danh sách có thể chứa dữ liệu lưu từ lần quét thành công trước đó; hãy xác minh tại nguồn.',true));
+    const age=dateValue(feed.last_attempt);if(age&&Date.now()-age>1000*60*100)area.append(notice('Dữ liệu đã lâu chưa được quét. Hãy kiểm tra GitHub Actions nếu cần thông tin mới nhất.',true));
+    if(state.hasLoaded&&!items.length)area.append(notice('Hiện chưa có ưu đãi phù hợp được công bố từ các nguồn đã cấu hình. Không có mã giả được thêm vào.'));
+    if(state.bundledFallback)area.append(notice('Đang xem mã khởi tạo được nguồn công khai niêm yết ngày 14/10/2026. GitHub chưa chạy lần quét đầu; mã chưa được xác minh khi thanh toán.',true));
+    if(!config.dataUrl)area.append(notice('Chưa kết nối URL JSON bên ngoài. Hiện chỉ hiển thị dữ liệu đi kèm trong Space.'));
+  }
+  function render(){renderMetrics();renderAlerts();renderCards();renderSources()}
+  function setMode(mode){if(!['codes','all','claim','saved'].includes(mode))return;state.mode=mode;state.visible=24;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode===mode);b.setAttribute('aria-pressed',String(b.dataset.mode===mode))});document.querySelectorAll('[data-side]').forEach(b=>b.classList.toggle('active',b.dataset.side===mode));renderCards()}
+  function setPlatform(name){state.platform=name;state.visible=24;document.querySelectorAll('[data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===name);b.setAttribute('aria-pressed',String(b.dataset.platform===name))});document.querySelectorAll('[data-merchant]').forEach(b=>b.classList.toggle('active',b.dataset.merchant===name));renderCards()}
+  async function load(force=false){if(state.loading)return;state.loading=true;$('refreshBtn').disabled=true;
+    try {const address=new URL(feedUrl,location.href);if(!['http:','https:'].includes(address.protocol))throw Error('URL không hợp lệ');if(force)address.searchParams.set('_v',Date.now());
+      const res=await fetch(address.href,{mode:'cors',cache:force?'no-store':'no-cache'});if(!res.ok)throw Error('HTTP '+res.status);let data=await res.json();if(!data||!Array.isArray(data.items)||!Array.isArray(data.sources))throw Error('Dữ liệu JSON sai cấu trúc');
+      state.bundledFallback=false;
+      // When the GitHub repo has NOT EVER been scanned, show attributed, dated initial data.
+      // Never override a genuine empty result from a completed scan.
+      if(!data.items.length && !data.last_attempt && !data.last_updated && !feedUrl.startsWith('./')) {
+        try {const fallback=await fetch('./data/offers.json',{cache:'no-cache'});
+          if(fallback.ok){const local=await fallback.json();if(Array.isArray(local.items)&&local.items.length){data=local;state.bundledFallback=true;}}
+        }catch{}
+      }
+      const sign=JSON.stringify([data.last_attempt,data.items,data.sources,state.bundledFallback]);state.hasLoaded=true;
+      if(sign!==lastSignature||force){lastSignature=sign;state.feed=data;render()}
+      if(force)showToast('Đã tải phiên bản dữ liệu mới nhất trên GitHub');
+    }catch(err){state.hasLoaded=true;$('alerts').replaceChildren(notice('Không lấy được dữ liệu từ GitHub: '+err.message+'. Kiểm tra repository public, cấu hình config.js và GitHub Actions.',true));$('emptyTitle').textContent='Không thể kết nối nguồn dữ liệu';$('emptyDesc').textContent='Vui lòng kiểm tra link dữ liệu hoặc GitHub Actions.';if(!state.feed.items.length){$('cards').replaceChildren();$('empty').hidden=false}if(force)showToast('Không thể tải dữ liệu. Kiểm tra JSON công khai.');}
+    finally{state.loading=false;$('refreshBtn').disabled=false;}
+  }
+  function setupTheme(){let theme;try{theme=localStorage.getItem(STORE_THEME)}catch{}if(theme==='dark')document.body.classList.add('dark');$('themeToggle').addEventListener('click',()=>{const yes=document.body.classList.toggle('dark');try{localStorage.setItem(STORE_THEME,yes?'dark':'light')}catch{}showToast(yes?'Đã bật giao diện tối':'Đã bật giao diện sáng')})}
+  function setup(){setupTheme();document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+    document.querySelectorAll('[data-platform]').forEach(b=>b.addEventListener('click',()=>setPlatform(b.dataset.platform)));
+    document.querySelectorAll('[data-side]').forEach(b=>b.addEventListener('click',()=>{setMode(b.dataset.side);$('deals').scrollIntoView({behavior:'smooth'})}));
+    document.querySelectorAll('[data-merchant]').forEach(b=>b.addEventListener('click',()=>{setPlatform(b.dataset.merchant);$('deals').scrollIntoView({behavior:'smooth'})}));
+    $('search').addEventListener('input',e=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.query=e.target.value;state.visible=24;renderCards()},130)});
+    $('sort').addEventListener('change',e=>{state.sort=e.target.value;renderCards()});
+    $('refreshBtn').addEventListener('click',()=>load(true));$('emptyRefresh').addEventListener('click',()=>load(true));$('viewAll').addEventListener('click',()=>{state.query='';$('search').value='';setMode('all')});
+    $('showMore').addEventListener('click',()=>{state.visible+=24;renderCards()});
+    $('heroJump').addEventListener('click',()=>{setMode('codes');$('deals').scrollIntoView({behavior:'smooth'})});
+    $('sourcesToggle').addEventListener('click',()=>{const expanded=$('sourcesToggle').getAttribute('aria-expanded')==='true';$('sourcesToggle').setAttribute('aria-expanded',String(!expanded));$('sources').hidden=expanded});
+    document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('search').focus()}});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)load(false)});
+    refreshTimer=setInterval(()=>{if(!document.hidden)load(false)},reloadMs);
+    setPlatform('all');setMode('codes');load();
+  }
+  setup();
+})();

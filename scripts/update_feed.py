@@ -117,7 +117,7 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200) -> dic
             candidates.append(record)
     def rank(o):
         return (not o['stale'], o['source_key'] == 'manual' or o['source_key'].startswith('feed_'),
-                bool(o.get('direct_link')), bool(o.get('code')),
+                bool(o.get('code')), bool(o.get('direct_link')),
                 o.get('published_at') or o.get('last_seen') or '')
     candidates.sort(key=rank, reverse=True)
     chosen = []
@@ -159,7 +159,7 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200) -> dic
         'is_scanning': False,
         'has_source_errors': any(s['ok'] is False for s in statuses),
         'refresh_minutes': 30,
-        'notice': 'Dữ liệu từ nguồn công khai; chưa xác minh tại thanh toán. GitHub Actions có thể chạy trễ lịch.',
+        'notice': 'Mã được nguồn công khai đăng tải; chưa xác minh còn lượt hoặc áp dụng được khi thanh toán. GitHub Actions có thể chạy trễ lịch.',
     }
 
 
