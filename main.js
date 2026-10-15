@@ -6,7 +6,7 @@
   const reloadMs = Math.max(60, Math.min(Number(config.reloadSeconds) || 180, 3600)) * 1000;
   const STORE_FAV = 'salehunter-v3-favs';
   const STORE_THEME = 'salehunter-v3-theme';
-  const STORE_BAD = 'salehunter-v3-reported-codes';
+  const STORE_BAD = 'salehunter-v3-reported-codes'; // Chỉ giữ tương thích mã đã ẩn ở bản cũ.
   const state = {feed: {items:[],sources:[],last_updated:null,stats:{}},platform:'all',mode:'codes',query:'',sort:'featured',visible:24,loading:false,hasLoaded:false,bundledFallback:false};
   const favorites = new Set(safeRead(STORE_FAV, []));
   const reportedCodes = new Set(safeRead(STORE_BAD, []).map(s => String(s).toUpperCase()));
@@ -35,13 +35,13 @@
       // Keep the explicitly reported code and the packaged fallback denylist.
     }
   }
-  function reportCode(item){
-    if(!hasCode(item))return;
-    reportedCodes.add(codeKey(item));
-    try{localStorage.setItem(STORE_BAD,JSON.stringify([...reportedCodes].slice(-500)))}catch{}
-    render();
-    showToast('Đã ẩn mã trên thiết bị này. Chưa gửi báo cáo về máy chủ.');
+  function testedRecently(item){
+    if(!hasCode(item)||item.stale||item.verification_status!=='recent_success')return false;
+    const when=dateValue(item.verified_at);
+    const age=when===null?Infinity:Date.now()-when;
+    return age>=0&&age<=24*60*60*1000;
   }
+  function recommended(item){return !hasCode(item)||testedRecently(item)}
   function activeItems(){return (state.feed.items||[]).filter(item=>item&&typeof item==='object'&&(item.platform==='Shopee'||item.platform==='TikTok Shop')&&(!dateValue(item.expires_at)||dateValue(item.expires_at)>Date.now())&&!hiddenBadCode(item));}
   function showToast(msg){const node=$('toast');node.textContent=msg;node.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('show'),3500)}
   async function copyText(value){
@@ -62,9 +62,9 @@
   }
   function filtered(){const q=state.query.toLocaleLowerCase('vi').trim();return sortList(activeItems().filter(item=>
     (state.platform==='all'||item.platform===state.platform)&&
-    (state.mode==='all'||state.mode==='codes'&&hasCode(item)||state.mode==='claim'&&!hasCode(item)||state.mode==='saved'&&favorites.has(item.id))&&
+    (state.mode==='all'&&recommended(item)||state.mode==='codes'&&testedRecently(item)||state.mode==='unverified'&&hasCode(item)&&!testedRecently(item)||state.mode==='claim'&&!hasCode(item)||state.mode==='saved'&&favorites.has(item.id)&&recommended(item))&&
     (!q||[item.title,item.description,item.code,item.discount,item.min_spend,item.source].join(' ').toLocaleLowerCase('vi').includes(q))));}
-  function renderMetrics(){const items=activeItems(), codes=items.filter(hasCode).length, shopee=items.filter(x=>x.platform==='Shopee').length, tiktok=items.filter(x=>x.platform==='TikTok Shop').length;
+  function renderMetrics(){const items=activeItems().filter(recommended), codes=items.filter(testedRecently).length, shopee=items.filter(x=>x.platform==='Shopee').length, tiktok=items.filter(x=>x.platform==='TikTok Shop').length;
     for(const [id,value] of Object.entries({statAll:items.length,statCodes:codes,statShopee:shopee,statTikTok:tiktok,navTotal:items.length,navCodes:codes,navSaved:favorites.size,countAll:items.length,countShopee:shopee,countTikTok:tiktok}))$(id).textContent=String(value);
     $('updated').replaceChildren(icon('clock'),document.createTextNode('Cập nhật nguồn: '+formatted(state.feed.last_updated)));
   }
@@ -72,7 +72,7 @@
     const isTik=item.platform==='TikTok Shop';const card=el('article','offer-card'+(isTik?' tiktok':''));
     const cover=el('div','offer-cover');cover.append(el('div','cover-orb'),el('div','cover-circle'));
     const top=el('div','cover-top'),merchant=el('span','merchant-pill');merchant.append(el('span','merchant-pill-icon',isTik?'♪':'S'),document.createTextNode(item.platform));
-    top.append(merchant,el('span','type-badge',hasCode(item)?'CÓ MÃ COPY':'NHẬN VOUCHER'));
+    top.append(merchant,el('span','type-badge',hasCode(item)?(testedRecently(item)?'ĐÃ THỬ ÁP DỤNG':'CHƯA KIỂM CHỨNG'):'NHẬN VOUCHER'));
     let visual=item.discount?String(item.discount):'';if(!visual)visual=hasCode(item)?'MÃ GIẢM GIÁ':'ƯU ĐÃI';
     cover.append(top,el('div','cover-discount',visual.length>30?visual.slice(0,28)+'…':visual),el('div','cover-subtitle',hasCode(item)?'SAO CHÉP MÃ NHẬP TAY':'XEM HƯỚNG DẪN NHẬN MÃ'));
     card.append(cover);
@@ -82,8 +82,7 @@
     const coupon=el('div','coupon-box'+(hasCode(item)?'':' no-code')),content=el('div');content.append(el('span','code-label',hasCode(item)?'MÃ ĐƯỢC CÔNG BỐ':'KHÔNG CÓ CHUỖI MÃ NHẬP TAY'),el('strong','code-value',hasCode(item)?item.code:'Nhận ưu đãi trên trang nguồn'));coupon.append(content);
     if(hasCode(item)){const b=el('button','copy-btn');b.type='button';b.append(icon('copy'),document.createTextNode('Copy mã'));b.setAttribute('aria-label','Sao chép mã '+item.code);b.addEventListener('click',()=>copyText(item.code));coupon.append(b);}
     else coupon.append(icon('external'));
-    body.append(coupon,el('div','card-disclaimer','⚠ CHƯA XÁC MINH tại thanh toán. Mã có thể hết lượt, giới hạn tài khoản hoặc không áp dụng cho đơn hàng.'));
-    if(hasCode(item)){const report=el('button','report-code-btn','⚑ Báo mã không dùng được · Ẩn trên thiết bị');report.type='button';report.addEventListener('click',()=>reportCode(item));body.append(report);}
+    body.append(coupon,el('div','card-disclaimer',testedRecently(item)?'✓ Đã có lượt thử áp dụng thành công gần đây theo quản trị viên. Có thể vẫn giới hạn tài khoản hoặc hết lượt.':'⚠ Chưa có bằng chứng dùng được khi thanh toán. Chỉ xem để tham khảo, không thuộc danh sách đề xuất.'));
     const footer=el('div','card-footer');const source=el('span','card-source');source.append(document.createTextNode('Nguồn: '),el('strong',null,item.source||'Công khai'));source.title=item.source||'';footer.append(source);
     const actions=el('div','card-actions');const href=validLink(item.url);const out=el('a','open-source');out.append(document.createTextNode('Xem nguồn'),icon('external'));
     if(href){out.href=href;out.target='_blank';out.rel='noopener noreferrer';}else {out.removeAttribute('href');out.setAttribute('aria-disabled','true');}
@@ -98,7 +97,7 @@
     $('showMore').hidden=rows.length<=state.visible;
     const empty=rows.length===0; $('empty').hidden=!empty;
     if(empty){let title='Chưa tìm thấy mã phù hợp',desc='Hãy thử thay đổi bộ lọc hoặc tìm kiếm.';
-      if(state.mode==='codes'&&!state.query&&state.platform==='all'){title='Chưa tìm được mã nhập tay mới';desc='Bộ quét chưa trích xuất được chuỗi mã hợp lệ từ các nguồn hiện tại. Bạn có thể chọn “Tất cả” để xem các ưu đãi khác hoặc kiểm tra trạng thái nguồn bên dưới.'}
+      if(state.mode==='codes'&&!state.query&&state.platform==='all'){title='Chưa có mã nào được thử áp dụng thành công gần đây';desc='SaleHunter không đưa mã chưa kiểm chứng vào danh sách chính. Bạn có thể xem riêng mục “Mã chưa kiểm chứng” để tham khảo hoặc đợi quản trị viên xác nhận mã dùng được.'}
       if(state.mode==='saved'){title='Chưa có ưu đãi đã lưu';desc='Nhấn nút trái tim ở thẻ ưu đãi để lưu lại và tìm nhanh lần sau.'}
       if(!state.hasLoaded){title='Đang tải dữ liệu';desc='Đang kết nối với kho voucher công khai trên GitHub…'}
       $('emptyTitle').textContent=title;$('emptyDesc').textContent=desc;
@@ -112,12 +111,13 @@
   function renderAlerts(){const area=$('alerts');area.replaceChildren();const feed=state.feed;const items=activeItems();if(feed.has_source_errors)area.append(notice('Một hoặc nhiều nguồn đang lỗi. Danh sách có thể chứa dữ liệu lưu từ lần quét thành công trước đó; hãy xác minh tại nguồn.',true));
     const age=dateValue(feed.last_attempt);if(age&&Date.now()-age>1000*60*100)area.append(notice('Dữ liệu đã lâu chưa được quét. Hãy kiểm tra GitHub Actions nếu cần thông tin mới nhất.',true));
     if(state.hasLoaded&&!items.length)area.append(notice('Hiện chưa có ưu đãi phù hợp được công bố từ các nguồn đã cấu hình. Không có mã giả được thêm vào.'));
-    if(reportedCodes.size)area.append(notice('Bạn đã ẩn '+reportedCodes.size+' mã lỗi trên thiết bị này. Báo cáo chưa được gửi tới quản trị viên.'));
-    area.append(notice('Lưu ý: Mã công bố trên website thứ ba KHÔNG đồng nghĩa Shopee/TikTok Shop chấp nhận mã. Chỉ sàn mới xác nhận khi áp dụng đơn hàng.'));
+    if(reportedCodes.size)area.append(notice('Đã lọc '+reportedCodes.size+' mã từng bị ẩn theo dữ liệu thiết bị cũ.'));
+    if(!activeItems().some(testedRecently))area.append(notice('Chưa có mã nhập tay được thử thành công trong 24 giờ qua. Mã từ website bên ngoài chỉ nằm ở tab “Chưa kiểm chứng”.'));
+    area.append(notice('Mã “Đã thử áp dụng” chỉ là kiểm tra thực tế của quản trị viên trong 24 giờ; không phải xác nhận của sàn và không bảo đảm dùng được với mọi tài khoản.'));
     if(!config.dataUrl)area.append(notice('Chưa kết nối URL JSON bên ngoài. Hiện chỉ hiển thị dữ liệu đi kèm trong Space.'));
   }
   function render(){renderMetrics();renderAlerts();renderCards();renderSources()}
-  function setMode(mode){if(!['codes','all','claim','saved'].includes(mode))return;state.mode=mode;state.visible=24;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode===mode);b.setAttribute('aria-pressed',String(b.dataset.mode===mode))});document.querySelectorAll('[data-side]').forEach(b=>b.classList.toggle('active',b.dataset.side===mode));renderCards()}
+  function setMode(mode){if(!['codes','unverified','all','claim','saved'].includes(mode))return;state.mode=mode;state.visible=24;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.mode===mode);b.setAttribute('aria-pressed',String(b.dataset.mode===mode))});document.querySelectorAll('[data-side]').forEach(b=>b.classList.toggle('active',b.dataset.side===mode));renderCards()}
   function setPlatform(name){state.platform=name;state.visible=24;document.querySelectorAll('[data-platform]').forEach(b=>{b.classList.toggle('active',b.dataset.platform===name);b.setAttribute('aria-pressed',String(b.dataset.platform===name))});document.querySelectorAll('[data-merchant]').forEach(b=>b.classList.toggle('active',b.dataset.merchant===name));renderCards()}
   async function load(force=false){if(state.loading)return;state.loading=true;$('refreshBtn').disabled=true;
     try {const address=new URL(feedUrl,document.baseURI);if(!['http:','https:'].includes(address.protocol))throw Error('URL không hợp lệ');if(force)address.searchParams.set('_v',Date.now());

@@ -1,4 +1,4 @@
-# SaleHunter VN V3.1 — GitHub AutoScan
+# SaleHunter VN V3.3 — GitHub AutoScan
 
 Bộ thu thập công khai cho giao diện Hugging Face **Static**. Python chạy bằng GitHub Actions, không dùng Docker.
 
@@ -18,3 +18,16 @@ Quản trị viên có thể dùng `data/excluded_codes.json` để tạm loại
 - Token là Hugging Face fine-grained với quyền write **chỉ vào Space** `khoiminh333/salehunter-vn-v2`. Không chia sẻ token trong chat.
 - `Actions > Deploy Hugging Face Static > Run workflow`. Nếu thiếu token, workflow chỉ bỏ qua.
 - Dữ liệu `data/offers.json` được cập nhật bởi workflow săn mã độc lập; Hugging Face tải trực tiếp JSON GitHub.
+
+
+### Hiển thị nghiêm ngặt V3.3
+
+- Tab chính **Mã đã thử thành công** chỉ hiển thị chuỗi mã được quản trị viên
+  xác nhận đã áp dụng thành công trong 24 giờ qua (không bảo đảm cho tài khoản khác).
+- Tab **Mã chưa kiểm chứng** là khu vực tham khảo riêng; không tự trộn vào mục chính.
+- File `data/verified_codes.json` trên GitHub mặc định là danh sách rỗng.
+  Không thêm xác nhận khi chưa có thử nghiệm thực tế.
+- File `data/excluded_codes.json` chặn mã đã báo lỗi trên **tất cả** thiết bị
+  trong lần quét kế tiếp, kể cả mã từ cache; xem xét gỡ chặn sau khi kiểm tra lại.
+- Không có API checkout từ Shopee/TikTok Shop nên hệ thống không thể tự xác minh
+  mã cho mọi tài khoản. Không sử dụng mã giả hoặc thử đoán mã.

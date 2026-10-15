@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -56,6 +57,38 @@ def read_excluded_codes(path: Path) -> set[str]:
             if (v := value.strip().upper()) and valid.fullmatch(v)}
 
 
+
+def read_recent_successes(path: Path, now: datetime) -> dict[tuple[str, str], str]:
+    """Opt-in attestations by the operator, NOT marketplace API verification.
+
+    A record is trusted for presentation for at most 24h and must mention an
+    actual successful checkout application test. Merely finding a code online
+    can never upgrade it to a tested code.
+    """
+    data = read_json(path, {'records': []})
+    records = data.get('records', [])
+    if not isinstance(records, list):
+        raise ValueError('verified_codes.json: records phải là mảng')
+    if len(records) > 300:
+        raise ValueError('verified_codes.json: quá nhiều bản ghi')
+    accepted = {}
+    for rec in records:
+        if not isinstance(rec, dict) or rec.get('basis') != 'checkout_success':
+            continue
+        platform = rec.get('platform')
+        code = str(rec.get('code') or '').strip().upper()
+        verified = parse_iso(rec.get('successful_at'))
+        context = str(rec.get('context') or '').strip()
+        if (platform not in ('Shopee', 'TikTok Shop')
+            or not re.fullmatch(r'[A-Z0-9][A-Z0-9_-]{4,27}', code)
+            or not verified or not (timedelta(0) <= now - verified <= timedelta(hours=24))
+            or len(context) < 10):
+            continue
+        key = (platform, code)
+        if key not in accepted or verified.isoformat() > accepted[key]:
+            accepted[key] = verified.isoformat()
+    return accepted
+
 def refresh_sources(cache: dict, sources: list, now: datetime, max_workers: int = 4):
     cache.setdefault('sources', {})
     cache.setdefault('totals', {'scans': 0, 'failed_scans': 0})
@@ -97,9 +130,11 @@ def refresh_sources(cache: dict, sources: list, now: datetime, max_workers: int 
     return attempts
 
 
-def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, excluded_codes: set[str] | None = None) -> dict:
+def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, excluded_codes: set[str] | None = None,
+             verified_codes: dict[tuple[str, str], str] | None = None) -> dict:
     known = cache.get('sources', {})
     excluded_codes = excluded_codes or set()
+    verified_codes = verified_codes or {}
     candidates = []
     statuses = []
     for source in sources:
@@ -129,6 +164,12 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, exclud
             record = dict(item)
             record['stale'] = stale
             record['source_unavailable'] = stale
+            code = str(record.get('code') or '').strip().upper()
+            verified_at = verified_codes.get((record.get('platform'), code)) if code and not stale else None
+            record['verification_status'] = 'recent_success' if verified_at else 'unverified'
+            record['verified_at'] = verified_at
+            record['verification'] = ('Đã có thử áp dụng thành công gần đây (theo quản trị viên; không bảo đảm cho mọi tài khoản)'
+                                      if verified_at else 'Chưa có bằng chứng áp dụng thành công tại thanh toán')
             candidates.append(record)
     def rank(o):
         return (not o['stale'], o['source_key'] == 'manual' or o['source_key'].startswith('feed_'),
@@ -164,6 +205,7 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, exclud
         'shopee': sum(x['platform'] == 'Shopee' for x in chosen),
         'tiktok': sum(x['platform'] == 'TikTok Shop' for x in chosen),
         'codes': sum(bool(x.get('code')) for x in chosen),
+        'recent_success': sum(x.get('verification_status') == 'recent_success' for x in chosen),
         'stale': sum(bool(x.get('stale')) for x in chosen),
         'scans': totals.get('scans', 0),
         'failed_scans': totals.get('failed_scans', 0),
@@ -174,7 +216,7 @@ def snapshot(cache: dict, sources: list, now: datetime, limit: int = 200, exclud
         'is_scanning': False,
         'has_source_errors': any(s['ok'] is False for s in statuses),
         'refresh_minutes': 30,
-        'notice': 'Mã được nguồn công khai đăng tải; chưa xác minh còn lượt hoặc áp dụng được khi thanh toán. GitHub Actions có thể chạy trễ lịch.',
+        'notice': 'Mã nhập tay từ nguồn ngoài chưa được mặc định xem là mã dùng được. Chỉ mã đã thử áp dụng gần đây do quản trị viên xác nhận mới xuất hiện ở tab chính.',
     }
 
 
@@ -189,7 +231,9 @@ def main():
     )
     cache = read_json(CACHE_PATH, {'schema_version': 1, 'sources': {}, 'totals': {}})
     attempts = refresh_sources(cache, sources, now)
-    result = snapshot(cache, sources, now, excluded_codes=read_excluded_codes(ROOT / 'data' / 'excluded_codes.json'))
+    result = snapshot(cache, sources, now,
+                      excluded_codes=read_excluded_codes(ROOT / 'data' / 'excluded_codes.json'),
+                      verified_codes=read_recent_successes(ROOT / 'data' / 'verified_codes.json', now))
     write_json(CACHE_PATH, cache)
     write_json(FEED_PATH, result)
     print('Nguồn:', len(sources), '| Kết quả:', [(k, ok, n) for k, ok, n in sorted(attempts)])

@@ -10,3 +10,7 @@ body.dark{--bg:#10131f;--surface:#191e30;--surface-2:#1c2032;--text:#f0f1fb;--mu
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 
 .report-code-btn{display:block;max-width:100%;margin:0 0 6px;padding:8px 2px;border:0;background:transparent;color:#a14039;font-size:11px;font-weight:650;cursor:pointer;text-align:left}.report-code-btn:hover{text-decoration:underline}.report-code-btn:focus-visible{outline:3px solid #ef9c9c;outline-offset:2px}body.dark .report-code-btn{color:#ffb1a6}
+
+/* V3.3 — phân biệt rõ mã đã thử thành công và mã chưa kiểm chứng. */
+.mode-switch {flex-wrap: wrap;}
+[data-mode="unverified"].active {outline: 2px solid #e5a23a; outline-offset: -2px;}
