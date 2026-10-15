@@ -11,3 +11,10 @@ Bộ thu thập công khai cho giao diện Hugging Face **Static**. Python chạ
 Mã được phát hiện từ trang công khai chưa được Shopee/TikTok Shop xác minh khi thanh toán; một mã có thể không áp dụng cho một tài khoản hoặc đơn hàng. Không tự suy ra mã còn dùng chỉ từ hạn công bố.
 
 Quản trị viên có thể dùng `data/excluded_codes.json` để tạm loại mã bị phản ánh. Thư mục `data/manual_offers.json` được để rỗng để tránh hiển thị mã seed chưa được xác minh.
+
+
+## Tự đồng bộ lên Hugging Face
+- GitHub `Settings > Secrets and variables > Actions > New repository secret`: tạo `HF_TOKEN`.
+- Token là Hugging Face fine-grained với quyền write **chỉ vào Space** `khoiminh333/salehunter-vn-v2`. Không chia sẻ token trong chat.
+- `Actions > Deploy Hugging Face Static > Run workflow`. Nếu thiếu token, workflow chỉ bỏ qua.
+- Dữ liệu `data/offers.json` được cập nhật bởi workflow săn mã độc lập; Hugging Face tải trực tiếp JSON GitHub.

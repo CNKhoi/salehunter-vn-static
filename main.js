@@ -10,7 +10,7 @@
   const state = {feed: {items:[],sources:[],last_updated:null,stats:{}},platform:'all',mode:'codes',query:'',sort:'featured',visible:24,loading:false,hasLoaded:false,bundledFallback:false};
   const favorites = new Set(safeRead(STORE_FAV, []));
   const reportedCodes = new Set(safeRead(STORE_BAD, []).map(s => String(s).toUpperCase()));
-  const excludedCodes = new Set(['SVIPDDVKH0110MOC200A']); // Reported in the uploaded Shopee screenshot.
+  const excludedCodes = new Set(['SVIPDDVKH0110MOC200A', 'SVIPDDVKH0110M0C200A']); // Reported in the uploaded Shopee screenshot.
   let toastTimer;
   let refreshTimer;
   let searchTimer;

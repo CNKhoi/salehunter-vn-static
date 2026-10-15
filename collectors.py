@@ -127,7 +127,7 @@ def make_offer(*, platform: str, title: str, url: str, source_key: str, source_n
     if code and (not re.fullmatch(r'[A-Z0-9][A-Z0-9_-]{4,27}', code) or code in BAD_CODES):
         code = None
     normalized = unicodedata.normalize('NFKC', title).casefold()
-    identity = f'{source_key}|{platform}|{canonical_url(url)}|{normalized}'
+    identity = f'{source_key}|{platform}|{canonical_url(url)}|' + (f'code:{code}' if code else f'title:{normalized}')
     # By source gives independence on provider updates and favorites stable across scans.
     key = hashlib.sha256(identity.encode('utf-8')).hexdigest()[:24]
     direct_host = urlsplit(url).hostname or ''
